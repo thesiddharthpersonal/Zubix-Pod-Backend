@@ -1,0 +1,602 @@
+import express, { Response } from 'express';
+import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/auth.js';
+import { body, validationResult } from 'express-validator';
+import prisma from '../utils/prisma';
+import { ApiResponse } from '../utils/responses';
+import { checkPodMembership, checkPodOwnership, userSelectMinimal } from '../utils/permissions';
+
+const router = express.Router();
+
+// Get all events in a pod
+router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { podId } = req.params;
+
+    // Check if user is a member or owner of the pod
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      return res.status(404).json({ error: 'Pod not found' });
+    }
+
+    const isMember = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    const isOwner = pod.ownerId === req.user!.id;
+
+    if (!isMember && !isOwner) {
+      return res.status(403).json({ error: 'You must be a member of this pod to view events' });
+    }
+
+    const events = await prisma.event.findMany({
+      where: { podId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true
+          }
+        },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            participants: true
+          }
+        }
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    });
+
+    // Check which events the current user has joined
+    const eventsWithJoinStatus = events.map(event => ({
+      ...event,
+      hasJoined: event.participants.some(p => p.userId === req.user!.id)
+    }));
+
+    res.json({ events: eventsWithJoinStatus });
+  } catch (error) {
+    console.error('Get events error:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+// Get all events from user's joined pods
+router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    // Get all pods user is a member of
+    const memberships = await prisma.podMember.findMany({
+      where: { userId: req.user!.id },
+      select: { podId: true }
+    });
+
+    const podIds = memberships.map(m => m.podId);
+
+    if (podIds.length === 0) {
+      return res.json({ events: [] });
+    }
+
+    const events = await prisma.event.findMany({
+      where: {
+        podId: {
+          in: podIds
+        }
+      },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true
+          }
+        },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            participants: true
+          }
+        }
+      },
+      orderBy: {
+        startDate: 'asc'
+      }
+    });
+
+    // Check which events the current user has joined
+    const eventsWithJoinStatus = events.map(event => ({
+      ...event,
+      hasJoined: event.participants.some(p => p.userId === req.user!.id)
+    }));
+
+    res.json({ events: eventsWithJoinStatus });
+  } catch (error) {
+    console.error('Get events feed error:', error);
+    res.status(500).json({ error: 'Failed to fetch events' });
+  }
+});
+
+// Get a single event by ID
+router.get('/:eventId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            ownerId: true
+          }
+        },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            joinedAt: 'desc'
+          }
+        },
+        _count: {
+          select: {
+            participants: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if user is a member or owner of the pod
+    const isMember = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: event.podId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    const isOwner = event.pod.ownerId === req.user!.id;
+
+    if (!isMember && !isOwner) {
+      return res.status(403).json({ error: 'You must be a member of this pod to view this event' });
+    }
+
+    const hasJoined = event.participants.some(p => p.userId === req.user!.id);
+
+    res.json({ event: { ...event, hasJoined } });
+  } catch (error) {
+    console.error('Get event error:', error);
+    res.status(500).json({ error: 'Failed to fetch event' });
+  }
+});
+
+// Create an event (pod owner only)
+router.post('/',
+  authMiddleware,
+  isPodOwner,
+  [
+    body('title').isLength({ min: 3 }).withMessage('Event title must be at least 3 characters'),
+    body('description').optional().isString(),
+    body('location').optional().isString(),
+    body('startDate').isISO8601().withMessage('Start date must be a valid date'),
+    body('endDate').optional().isISO8601().withMessage('End date must be a valid date'),
+    body('imageUrl').optional().isString(),
+    body('podId').notEmpty().withMessage('Pod ID is required')
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { title, description, location, startDate, endDate, imageUrl, podId } = req.body;
+
+      // Check if user owns the pod
+      const pod = await prisma.pod.findUnique({
+        where: { id: podId }
+      });
+
+      if (!pod) {
+        return res.status(404).json({ error: 'Pod not found' });
+      }
+
+      if (pod.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: 'You are not the owner of this pod' });
+      }
+
+      // Validate dates
+      const start = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        if (end <= start) {
+          return res.status(400).json({ error: 'End date must be after start date' });
+        }
+      }
+
+      const event = await prisma.event.create({
+        data: {
+          title,
+          description,
+          location,
+          startDate: start,
+          endDate: endDate ? new Date(endDate) : null,
+          imageUrl,
+          podId
+        },
+        include: {
+          pod: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true
+            }
+          },
+          _count: {
+            select: {
+              participants: true
+            }
+          }
+        }
+      });
+
+      res.status(201).json({ event });
+    } catch (error) {
+      console.error('Create event error:', error);
+      res.status(500).json({ error: 'Failed to create event' });
+    }
+  }
+);
+
+// Update an event (pod owner only)
+router.put('/:eventId',
+  authMiddleware,
+  isPodOwner,
+  [
+    body('title').optional().isLength({ min: 3 }),
+    body('description').optional().isString(),
+    body('location').optional().isString(),
+    body('startDate').optional().isISO8601(),
+    body('endDate').optional().isISO8601(),
+    body('imageUrl').optional().isString()
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { eventId } = req.params;
+      const { title, description, location, startDate, endDate, imageUrl } = req.body;
+
+      // Check if event exists and user owns the pod
+      const event = await prisma.event.findUnique({
+        where: { id: eventId },
+        include: {
+          pod: {
+            select: {
+              ownerId: true
+            }
+          }
+        }
+      });
+
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      if (event.pod.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: 'You are not the owner of this pod' });
+      }
+
+      // Validate dates if provided
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (end <= start) {
+          return res.status(400).json({ error: 'End date must be after start date' });
+        }
+      }
+
+      const updateData: any = {};
+      if (title) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (location !== undefined) updateData.location = location;
+      if (startDate) updateData.startDate = new Date(startDate);
+      if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+
+      const updatedEvent = await prisma.event.update({
+        where: { id: eventId },
+        data: updateData,
+        include: {
+          pod: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true
+            }
+          },
+          _count: {
+            select: {
+              participants: true
+            }
+          }
+        }
+      });
+
+      res.json({ event: updatedEvent });
+    } catch (error) {
+      console.error('Update event error:', error);
+      res.status(500).json({ error: 'Failed to update event' });
+    }
+  }
+);
+
+// Delete an event (pod owner only)
+router.delete('/:eventId', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+
+    // Check if event exists and user owns the pod
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        pod: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    if (event.pod.ownerId !== req.user!.id) {
+      return res.status(403).json({ error: 'You are not the owner of this pod' });
+    }
+
+    await prisma.event.delete({
+      where: { id: eventId }
+    });
+
+    res.json({ message: 'Event deleted successfully' });
+  } catch (error) {
+    console.error('Delete event error:', error);
+    res.status(500).json({ error: 'Failed to delete event' });
+  }
+});
+
+// Join an event
+router.post('/:eventId/join', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+
+    // Check if event exists
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if user is a member or owner of the pod
+    const isMember = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: event.podId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    const isOwner = event.pod.ownerId === req.user!.id;
+
+    if (!isMember && !isOwner) {
+      return res.status(403).json({ error: 'You must be a member of this pod to join events' });
+    }
+
+    // Check if already joined
+    const existingParticipant = await prisma.eventParticipant.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    if (existingParticipant) {
+      return res.status(400).json({ error: 'Already joined this event' });
+    }
+
+    const participant = await prisma.eventParticipant.create({
+      data: {
+        eventId,
+        userId: req.user!.id
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true
+          }
+        },
+        event: {
+          include: {
+            pod: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.status(201).json({ participant });
+  } catch (error) {
+    console.error('Join event error:', error);
+    res.status(500).json({ error: 'Failed to join event' });
+  }
+});
+
+// Leave an event
+router.post('/:eventId/leave', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+
+    const participant = await prisma.eventParticipant.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    if (!participant) {
+      return res.status(404).json({ error: 'Not a participant of this event' });
+    }
+
+    await prisma.eventParticipant.delete({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    res.json({ message: 'Left event successfully' });
+  } catch (error) {
+    console.error('Leave event error:', error);
+    res.status(500).json({ error: 'Failed to leave event' });
+  }
+});
+
+// Get participants of an event
+router.get('/:eventId/participants', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+
+    // Check if event exists
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if user is a member or owner of the pod
+    const isMember = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: event.podId,
+          userId: req.user!.id
+        }
+      }
+    });
+
+    const isOwner = event.pod.ownerId === req.user!.id;
+
+    if (!isMember && !isOwner) {
+      return res.status(403).json({ error: 'You must be a member of this pod to view participants' });
+    }
+
+    const participants = await prisma.eventParticipant.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true
+          }
+        }
+      },
+      orderBy: {
+        joinedAt: 'desc'
+      }
+    });
+
+    res.json({ participants });
+  } catch (error) {
+    console.error('Get participants error:', error);
+    res.status(500).json({ error: 'Failed to fetch participants' });
+  }
+});
+
+export default router;
