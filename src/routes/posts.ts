@@ -90,16 +90,25 @@ router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Respo
       select: { podId: true }
     });
 
-    const podIds = memberships.map(m => m.podId);
+    // Get all pods user owns
+    const ownedPods = await prisma.pod.findMany({
+      where: { ownerId: req.user!.id },
+      select: { id: true }
+    });
 
-    if (podIds.length === 0) {
+    // Combine member pod IDs and owned pod IDs
+    const memberPodIds = memberships.map(m => m.podId);
+    const ownedPodIds = ownedPods.map(p => p.id);
+    const allPodIds = [...new Set([...memberPodIds, ...ownedPodIds])];
+
+    if (allPodIds.length === 0) {
       res.json({ posts: [] });
       return;
     }
 
     const whereClause: any = {
       podId: {
-        in: podIds
+        in: allPodIds
       }
     };
 
@@ -129,18 +138,21 @@ router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Respo
           }
         },
         reactions: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true
-              }
-            }
+          select: {
+            id: true,
+            userId: true,
+            type: true
+          }
+        },
+        comments: {
+          select: {
+            id: true
           }
         },
         _count: {
           select: {
-            reactions: true
+            reactions: true,
+            comments: true
           }
         }
       },
@@ -149,7 +161,14 @@ router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Respo
       }
     });
 
-    res.json({ posts });
+    // Transform posts to include likes array and comments array
+    const transformedPosts = posts.map(post => ({
+      ...post,
+      likes: post.reactions.filter(r => r.type === 'like').map(r => r.userId),
+      comments: post.comments.map(c => c.id)
+    }));
+
+    res.json({ posts: transformedPosts });
   } catch (error) {
     console.error('Get feed error:', error);
     res.status(500).json({ error: 'Failed to fetch feed' });
@@ -162,7 +181,7 @@ router.post('/',
   [
     body('content').notEmpty().withMessage('Content is required'),
     body('podId').notEmpty().withMessage('Pod ID is required'),
-    body('imageUrl').optional().isString()
+    body('mediaUrls').optional().isArray()
   ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -172,7 +191,7 @@ router.post('/',
         return;
       }
 
-      const { content, podId, imageUrl } = req.body;
+      const { content, podId, mediaUrls = [] } = req.body;
 
       // Check if user is member or owner of the pod
       const isMember = await checkPodMembership(podId, req.user!.id);
@@ -189,10 +208,11 @@ router.post('/',
       const post = await prisma.post.create({
         data: {
           content,
-          imageUrl,
+          mediaUrls,
           type: postType,
           podId,
-          authorId: req.user!.id
+          authorId: req.user!.id,
+          isOwnerPost: isOwner
         },
         include: {
           author: {
@@ -231,7 +251,7 @@ router.put('/:postId',
   authMiddleware,
   [
     body('content').optional().notEmpty().withMessage('Content cannot be empty'),
-    body('imageUrl').optional().isString()
+    body('mediaUrls').optional().isArray()
   ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -242,7 +262,7 @@ router.put('/:postId',
       }
 
       const { postId } = req.params;
-      const { content, imageUrl } = req.body;
+      const { content, mediaUrls } = req.body;
 
       // Check if post exists and user is the author
       const post = await prisma.post.findUnique({
@@ -263,7 +283,7 @@ router.put('/:postId',
         where: { id: postId },
         data: {
           ...(content && { content }),
-          ...(imageUrl !== undefined && { imageUrl })
+          ...(mediaUrls !== undefined && { mediaUrls })
         },
         include: {
           author: {

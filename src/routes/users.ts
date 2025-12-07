@@ -374,4 +374,68 @@ router.post('/upload-photo', authMiddleware, async (req: AuthenticatedRequest, r
   }
 });
 
+// Get user's pods (owned and joined)
+router.get('/:userId/pods', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    // Get pods owned by user
+    const ownedPods = await prisma.pod.findMany({
+      where: { ownerId: userId },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true
+          }
+        },
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
+
+    // Get pods where user is a member
+    const memberPods = await prisma.podMember.findMany({
+      where: { userId },
+      include: {
+        pod: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            },
+            _count: {
+              select: {
+                members: true,
+                posts: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Combine and format the results
+    const pods = [
+      ...ownedPods,
+      ...memberPods.map(m => m.pod)
+    ];
+
+    res.json({ pods });
+  } catch (error) {
+    console.error('Get user pods error:', error);
+    res.status(500).json({ error: 'Failed to fetch user pods' });
+  }
+});
+
 export default router;
