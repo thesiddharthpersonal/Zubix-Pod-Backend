@@ -1,7 +1,7 @@
 import express, { Response } from 'express';
 import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
-import prisma from '../utils/prisma';
+import prisma from '../utils/prisma.js';
 
 const router = express.Router();
 

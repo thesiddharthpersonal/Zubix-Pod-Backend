@@ -1,8 +1,8 @@
 import express, { Response } from 'express';
 import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
-import prisma from '../utils/prisma';
-import { checkPodMembership, checkPodOwnership } from '../utils/permissions';
+import prisma from '../utils/prisma.js';
+import { checkPodMembership, checkPodOwnership } from '../utils/permissions.js';
 
 const router = express.Router();
 

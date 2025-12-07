@@ -1,8 +1,8 @@
 import express, { Response } from 'express';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
-import prisma from '../utils/prisma';
-import { ApiResponse } from '../utils/responses';
+import prisma from '../utils/prisma.js';
+import { ApiResponse } from '../utils/responses.js';
 
 const router = express.Router();
 
