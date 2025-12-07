@@ -44,7 +44,6 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
           select: {
             id: true,
             name: true,
-            profilePhoto: true
           }
         },
         _count: {
@@ -77,7 +76,6 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
           select: {
             id: true,
             name: true,
-            profilePhoto: true,
             ownerId: true
           }
         },
@@ -151,14 +149,14 @@ router.post('/',
         data: {
           name,
           description,
-          podId
+          podId,
+          createdBy: req.user!.id
         },
         include: {
           pod: {
             select: {
               id: true,
               name: true,
-              profilePhoto: true
             }
           }
         }
@@ -221,7 +219,6 @@ router.put('/:roomId',
             select: {
               id: true,
               name: true,
-              profilePhoto: true
             }
           }
         }
@@ -331,7 +328,7 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
     const messages = await prisma.message.findMany({
       where: whereClause,
       include: {
-        user: {
+        sender: {
           select: {
             id: true,
             username: true,

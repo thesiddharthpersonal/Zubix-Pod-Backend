@@ -22,7 +22,6 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         fullName: true,
         bio: true,
         profilePhoto: true,
-        profilePhoto: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -70,7 +69,6 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
         role: true,
         fullName: true,
         bio: true,
-        profilePhoto: true,
         profilePhoto: true,
         organisationName: true,
         brandName: true,
@@ -143,7 +141,6 @@ router.get('/search/query', authMiddleware, async (req: AuthenticatedRequest, re
         username: true,
         fullName: true,
         profilePhoto: true,
-        profilePhoto: true,
         role: true,
         organisationName: true,
         designation: true,
@@ -210,7 +207,6 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         fullName: true,
         bio: true,
         profilePhoto: true,
-        profilePhoto: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -264,7 +260,6 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
         fullName: true,
         bio: true,
         profilePhoto: true,
-        profilePhoto: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -316,7 +311,6 @@ router.post('/complete-registration', authMiddleware, async (req: AuthenticatedR
         fullName: true,
         bio: true,
         profilePhoto: true,
-        profilePhoto: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -363,7 +357,6 @@ router.post('/upload-photo', authMiddleware, async (req: AuthenticatedRequest, r
       select: {
         id: true,
         profilePhoto: true,
-        profilePhoto: true
       }
     });
 
