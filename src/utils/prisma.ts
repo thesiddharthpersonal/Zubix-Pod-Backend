@@ -6,7 +6,7 @@ let prisma: PrismaClient;
 export const getPrismaClient = (): PrismaClient => {
   if (!prisma) {
     prisma = new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     });
 
     // Graceful shutdown

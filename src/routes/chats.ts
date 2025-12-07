@@ -2,8 +2,6 @@ import express, { Response } from 'express';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
-import { ApiResponse } from '../utils/responses.js';
-import { checkChatParticipant, userSelectMinimal } from '../utils/permissions.js';
 
 const router = express.Router();
 
@@ -24,7 +22,11 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
                     id: true,
                     username: true,
                     fullName: true,
-                    avatar: true
+                    profilePhoto: true,
+                    email: true,
+                    mobile: true,
+                    role: true,
+                    createdAt: true
                   }
                 }
               }
@@ -57,6 +59,7 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
 
     const chats = chatParticipants.map(cp => ({
       ...cp.chat,
+      participants: cp.chat.participants.map(p => p.user),
       lastMessage: cp.chat.messages[0] || null
     }));
 
@@ -64,6 +67,83 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
   } catch (error) {
     console.error('Get chats error:', error);
     res.status(500).json({ error: 'Failed to fetch chats' });
+  }
+});
+
+// Find chat by participants (GET method for checking if chat exists)
+// IMPORTANT: Must be before /:chatId route to avoid matching "find" as a chatId
+router.get('/find', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { participantIds } = req.query;
+    const currentUserId = req.user!.id;
+
+    if (!participantIds || typeof participantIds !== 'string') {
+      res.status(400).json({ error: 'participantIds is required' });
+      return;
+    }
+
+    const participantIdArray = participantIds.split(',');
+
+    if (participantIdArray.length !== 2) {
+      res.status(400).json({ error: 'Exactly 2 participant IDs are required' });
+      return;
+    }
+
+    // Ensure current user is one of the participants
+    if (!participantIdArray.includes(currentUserId)) {
+      res.status(403).json({ error: 'You must be one of the participants' });
+      return;
+    }
+
+    // Find existing chat between these two users
+    const allChats = await prisma.chat.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: {
+              in: participantIdArray
+            }
+          }
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profilePhoto: true,
+                email: true,
+                mobile: true,
+                role: true,
+                createdAt: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Filter to find chat with exactly these two participants
+    const existingChat = allChats.find(chat => {
+      if (chat.participants.length !== 2) return false;
+      const userIds = chat.participants.map(p => p.userId).sort();
+      const requestedIds = participantIdArray.sort();
+      return userIds[0] === requestedIds[0] && userIds[1] === requestedIds[1];
+    });
+
+    // Transform participants to match frontend expectation
+    const transformedChat = existingChat ? {
+      ...existingChat,
+      participants: existingChat.participants.map(p => p.user)
+    } : null;
+
+    res.json({ chat: transformedChat });
+  } catch (error) {
+    console.error('Find chat error:', error);
+    res.status(500).json({ error: 'Failed to find chat' });
   }
 });
 
@@ -83,7 +163,11 @@ router.get('/:chatId', authMiddleware, async (req: AuthenticatedRequest, res: Re
                 id: true,
                 username: true,
                 fullName: true,
-                avatar: true
+                profilePhoto: true,
+                email: true,
+                mobile: true,
+                role: true,
+                createdAt: true
               }
             }
           }
@@ -104,7 +188,13 @@ router.get('/:chatId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       return;
     }
 
-    res.json({ chat });
+    // Transform participants to match frontend expectation
+    const transformedChat = {
+      ...chat,
+      participants: chat.participants.map(p => p.user)
+    };
+
+    res.json({ chat: transformedChat });
   } catch (error) {
     console.error('Get chat error:', error);
     res.status(500).json({ error: 'Failed to fetch chat' });
@@ -144,10 +234,10 @@ router.post('/get-or-create',
       }
 
       // Find existing chat between these two users
-      const existingChats = await prisma.chat.findMany({
+      const allChats = await prisma.chat.findMany({
         where: {
           participants: {
-            every: {
+            some: {
               userId: {
                 in: [currentUserId, targetUserId]
               }
@@ -162,7 +252,11 @@ router.post('/get-or-create',
                   id: true,
                   username: true,
                   fullName: true,
-                  avatar: true
+                  profilePhoto: true,
+                  email: true,
+                  mobile: true,
+                  role: true,
+                  createdAt: true
                 }
               }
             }
@@ -171,14 +265,19 @@ router.post('/get-or-create',
       });
 
       // Filter to find chat with exactly these two participants
-      const existingChat = existingChats.find(chat => 
-        chat.participants.length === 2 &&
-        chat.participants.some(p => p.userId === currentUserId) &&
-        chat.participants.some(p => p.userId === targetUserId)
-      );
+      const existingChat = allChats.find(chat => {
+        if (chat.participants.length !== 2) return false;
+        const userIds = chat.participants.map(p => p.userId).sort();
+        const requestedIds = [currentUserId, targetUserId].sort();
+        return userIds[0] === requestedIds[0] && userIds[1] === requestedIds[1];
+      });
 
       if (existingChat) {
-        res.json({ chat: existingChat });
+        const transformedChat = {
+          ...existingChat,
+          participants: existingChat.participants.map(p => p.user)
+        };
+        res.json({ chat: transformedChat });
         return;
       }
 
@@ -200,7 +299,11 @@ router.post('/get-or-create',
                   id: true,
                   username: true,
                   fullName: true,
-                  avatar: true
+                  profilePhoto: true,
+                  email: true,
+                  mobile: true,
+                  role: true,
+                  createdAt: true
                 }
               }
             }
@@ -208,7 +311,12 @@ router.post('/get-or-create',
         }
       });
 
-      res.status(201).json({ chat: newChat });
+      const transformedChat = {
+        ...newChat,
+        participants: newChat.participants.map(p => p.user)
+      };
+
+      res.status(201).json({ chat: transformedChat });
     } catch (error) {
       console.error('Get or create chat error:', error);
       res.status(500).json({ error: 'Failed to get or create chat' });

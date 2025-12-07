@@ -117,7 +117,12 @@ router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Respo
                 id: true,
                 username: true,
                 fullName: true,
-                avatar: true
+                avatar: true,
+                email: true,
+                mobile: true,
+                profilePhoto: true,
+                role: true,
+                createdAt: true
               }
             }
           }
@@ -169,7 +174,11 @@ router.get('/:eventId', authMiddleware, async (req: AuthenticatedRequest, res: R
                 id: true,
                 username: true,
                 fullName: true,
-                avatar: true
+                email: true,
+                mobile: true,
+                profilePhoto: true,
+                role: true,
+                createdAt: true
               }
             }
           },
@@ -576,7 +585,11 @@ router.get('/:eventId/participants', authMiddleware, async (req: AuthenticatedRe
             id: true,
             username: true,
             fullName: true,
-            avatar: true
+            email: true,
+            mobile: true,
+            profilePhoto: true,
+            role: true,
+            createdAt: true
           }
         }
       },

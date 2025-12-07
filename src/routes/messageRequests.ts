@@ -265,7 +265,11 @@ router.post('/:requestId/accept', authMiddleware, async (req: AuthenticatedReque
                 id: true,
                 username: true,
                 fullName: true,
-                avatar: true
+                profilePhoto: true,
+                email: true,
+                mobile: true,
+                role: true,
+                createdAt: true
               }
             }
           }

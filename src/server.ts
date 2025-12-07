@@ -34,6 +34,7 @@ app.use(cors({
       "https://zoobalo.com",
       "https://www.zoobalo.com",
       "https://podapi.zoobalo.com",
+      "https://zubix-pod.vercel.app",
     ];
 
     // Allow no-origin (Postman, curl)

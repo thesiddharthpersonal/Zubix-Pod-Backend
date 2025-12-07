@@ -174,7 +174,11 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
             id: true,
             username: true,
             fullName: true,
-            avatar: true
+            profilePhoto: true,
+            email: true,
+            mobile: true,
+            role: true,
+            createdAt: true
           }
         },
         members: {
@@ -184,7 +188,11 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
                 id: true,
                 username: true,
                 fullName: true,
-                avatar: true
+                profilePhoto: true,
+                email: true,
+                mobile: true,
+                role: true,
+                createdAt: true
               }
             }
           }
@@ -596,9 +604,11 @@ router.get('/:podId/members', authMiddleware, async (req: AuthenticatedRequest, 
             id: true,
             username: true,
             fullName: true,
-            avatar: true,
+            profilePhoto: true,
             email: true,
-            role: true
+            mobile: true,
+            role: true,
+            createdAt: true
           }
         }
       },

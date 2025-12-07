@@ -17,13 +17,29 @@ interface AuthenticatedSocket extends Socket {
 }
 
 const setupSocketIO = (server: HttpServer): Server => {
-  const allowedOrigins = process.env.CLIENT_URL 
-    ? process.env.CLIENT_URL.split(',') 
-    : ['http://localhost:5173', 'http://localhost:5174'];
+  const allowedOrigins = [
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'https://zoobalo.com',
+    'https://www.zoobalo.com',
+    'https://podapi.zoobalo.com',
+    'https://zubix-pod.vercel.app'
+  ];
 
   const io = new Server(server, {
     cors: {
-      origin: allowedOrigins,
+      origin: (origin, callback) => {
+        // Allow no-origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS: ' + origin), false);
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization']
