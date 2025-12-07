@@ -28,7 +28,7 @@ const io = setupSocketIO(server);
 // CORS Configuration
 const allowedOrigins = process.env.CLIENT_URL 
   ? process.env.CLIENT_URL.split(',') 
-  : ['http://localhost:5173', 'http://localhost:5174'];
+  : ['http://localhost:5173', 'http://localhost:5174', "https://podapi.zoobalo.com", "http://localhost:8080"];
 
 app.use(cors({
   origin: (origin, callback) => {
