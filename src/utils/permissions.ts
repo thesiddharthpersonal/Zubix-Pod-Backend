@@ -1,4 +1,4 @@
-import prisma from './prisma';
+import prisma from './prisma.js';
 
 /**
  * Check if a user is a member of a pod
