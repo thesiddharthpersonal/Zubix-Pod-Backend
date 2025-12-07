@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { verifyToken } from './utils/jwt.js';
-import prisma from './utils/prisma';
+import prisma from './utils/prisma.js';
 
 interface SocketUser {
   id: string;

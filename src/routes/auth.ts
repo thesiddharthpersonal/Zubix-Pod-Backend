@@ -3,7 +3,7 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
-import prisma from '../utils/prisma';
+import prisma from '../utils/prisma.js';
 
 const router = express.Router();
 
