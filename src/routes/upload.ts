@@ -1,7 +1,7 @@
 import express, { Response } from 'express';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
-import { generatePresignedUploadUrl, isValidMediaType } from '../utils/s3.js';
+import { generatePresignedUploadUrl, isValidFileType } from '../utils/s3.js';
 
 const router = express.Router();
 
@@ -23,10 +23,10 @@ router.post(
 
       const { fileType, folder = 'public' } = req.body;
 
-      // Validate file type
-      if (!isValidMediaType(fileType)) {
+      // Validate file type - allow images, videos, and PDFs
+      if (!isValidFileType(fileType)) {
         res.status(400).json({ 
-          error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP) and videos (MP4, WebM, OGG) are allowed.' 
+          error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP), videos (MP4, WebM, OGG), and PDF documents are allowed.' 
         });
         return;
       }

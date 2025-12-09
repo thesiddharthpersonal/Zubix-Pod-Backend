@@ -181,6 +181,18 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
             createdAt: true
           }
         },
+        coOwners: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            profilePhoto: true,
+            email: true,
+            mobile: true,
+            role: true,
+            createdAt: true
+          }
+        },
         members: {
           include: {
             user: {

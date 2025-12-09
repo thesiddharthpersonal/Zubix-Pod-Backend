@@ -40,10 +40,15 @@ export const generatePresignedUploadUrl = async (
     Bucket: BUCKET_NAME,
     Key: key,
     ContentType: fileType,
+    // ACL: 'public-read', // Uncomment if bucket requires ACL
   });
 
   // Generate presigned URL (valid for 5 minutes)
-  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+  const uploadUrl = await getSignedUrl(s3Client, command, { 
+    expiresIn: 300,
+    // Don't sign the Content-Type header to avoid signature mismatch
+    unhoistableHeaders: new Set(),
+  });
 
   // Construct the final file URL
   const fileUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION || 'ap-south-1'}.amazonaws.com/${key}`;
@@ -72,6 +77,13 @@ export const isValidVideoType = (mimeType: string): boolean => {
 };
 
 /**
+ * Validate file type for PDFs
+ */
+export const isValidPDFType = (mimeType: string): boolean => {
+  return mimeType.toLowerCase() === 'application/pdf';
+};
+
+/**
  * Validate file type for media (images and videos)
  */
 export const isValidMediaType = (mimeType: string): boolean => {
@@ -79,7 +91,14 @@ export const isValidMediaType = (mimeType: string): boolean => {
 };
 
 /**
- * Get file size limit in bytes (5MB for images, 50MB for videos)
+ * Validate file type for media and documents (images, videos, PDFs)
+ */
+export const isValidFileType = (mimeType: string): boolean => {
+  return isValidMediaType(mimeType) || isValidPDFType(mimeType);
+};
+
+/**
+ * Get file size limit in bytes (5MB for images, 50MB for videos, 10MB for PDFs)
  */
 export const getMaxFileSize = (fileType: string): number => {
   if (fileType.startsWith('image/')) {
@@ -87,6 +106,9 @@ export const getMaxFileSize = (fileType: string): number => {
   }
   if (fileType.startsWith('video/')) {
     return 50 * 1024 * 1024; // 50MB
+  }
+  if (fileType === 'application/pdf') {
+    return 10 * 1024 * 1024; // 10MB
   }
   return 10 * 1024 * 1024; // 10MB for other files
 };

@@ -403,9 +403,6 @@ router.patch('/:pitchId/status',
         where: { id: pitchId },
         include: {
           pod: {
-            select: {
-              ownerId: true
-            },
             include: {
               coOwners: {
                 select: { id: true }
@@ -420,8 +417,14 @@ router.patch('/:pitchId/status',
         return;
       }
 
+      console.log('Pitch pod owner:', pitch.pod.ownerId);
+      console.log('Current user:', req.user!.id);
+      console.log('Co-owners:', pitch.pod.coOwners);
+
       const isOwner = pitch.pod.ownerId === req.user!.id;
       const isCoOwner = pitch.pod.coOwners.some(co => co.id === req.user!.id);
+
+      console.log('Is owner:', isOwner, 'Is co-owner:', isCoOwner);
 
       if (!isOwner && !isCoOwner) {
         res.status(403).json({ error: 'Only pod owners/co-owners can update pitch status' });
@@ -539,7 +542,7 @@ router.post('/:pitchId/replies',
   }
 );
 
-// Upload pitch deck (placeholder)
+// Upload pitch deck
 router.post('/:pitchId/pitch-deck',
   authMiddleware,
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -571,7 +574,7 @@ router.post('/:pitchId/pitch-deck',
         data: { pitchDeckUrl }
       });
 
-      res.json({ pitchDeckUrl: updatedPitch.pitchDeckUrl });
+      res.json({ pitch: updatedPitch });
     } catch (error) {
       console.error('Upload pitch deck error:', error);
       res.status(500).json({ error: 'Failed to upload pitch deck' });

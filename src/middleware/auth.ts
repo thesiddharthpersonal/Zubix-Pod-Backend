@@ -66,7 +66,11 @@ export const isPodOwner = (
   res: Response,
   next: NextFunction
 ): void => {
-  if (req.user?.role !== 'POD_OWNER') {
+  const { user } = req;
+  const isPodOwner = user?.role === 'pod_owner' || user?.role === 'POD_OWNER';
+  console.log('User role:', user?.role, 'isPodOwner:', isPodOwner);
+
+  if (!isPodOwner) {
     res.status(403).json({ error: 'Only pod owners can perform this action' });
     return;
   }
