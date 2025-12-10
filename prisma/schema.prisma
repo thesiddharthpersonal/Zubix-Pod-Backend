@@ -98,6 +98,11 @@ model User {
   briefAboutOrganisation     String?
   operatingCity              String?
   website                    String?
+  // Student specific fields
+  collegeName                String?
+  currentCourse              String?
+  yearSemester               String?
+  interestDomain             String?
   linkedinUrl                String?
   instagramUrl               String?
   facebookUrl                String?
