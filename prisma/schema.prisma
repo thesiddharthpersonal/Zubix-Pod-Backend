@@ -103,6 +103,8 @@ model User {
   currentCourse              String?
   yearSemester               String?
   interestDomain             String?
+  // Startup specific fields
+  startupFoundedYear         String?
   linkedinUrl                String?
   instagramUrl               String?
   facebookUrl                String?
@@ -110,6 +112,7 @@ model User {
   youtubeUrl                 String?
   githubUrl                  String?
   portfolioUrl               String?
+  othersUrl                  String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

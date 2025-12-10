@@ -37,6 +37,7 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         currentCourse: true,
         yearSemester: true,
         interestDomain: true,
+        startupFoundedYear: true,
         linkedinUrl: true,
         instagramUrl: true,
         facebookUrl: true,
@@ -44,6 +45,7 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         youtubeUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        othersUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -92,6 +94,7 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
         currentCourse: true,
         yearSemester: true,
         interestDomain: true,
+        startupFoundedYear: true,
         linkedinUrl: true,
         instagramUrl: true,
         facebookUrl: true,
@@ -99,6 +102,7 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
         youtubeUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        othersUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -191,8 +195,9 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       'startupSubcategory', 'businessType', 'briefAboutOrganisation',
       'operatingCity', 'website',
       'collegeName', 'currentCourse', 'yearSemester', 'interestDomain',
+      'startupFoundedYear',
       'linkedinUrl', 'instagramUrl',
-      'facebookUrl', 'twitterUrl', 'youtubeUrl', 'githubUrl', 'portfolioUrl'
+      'facebookUrl', 'twitterUrl', 'youtubeUrl', 'githubUrl', 'portfolioUrl', 'othersUrl'
     ];
 
     // Filter to only include valid User fields
@@ -212,6 +217,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       if (updateData.socialLinks.youtube !== undefined) filteredUpdateData.youtubeUrl = updateData.socialLinks.youtube;
       if (updateData.socialLinks.github !== undefined) filteredUpdateData.githubUrl = updateData.socialLinks.github;
       if (updateData.socialLinks.portfolio !== undefined) filteredUpdateData.portfolioUrl = updateData.socialLinks.portfolio;
+      if (updateData.socialLinks.others !== undefined) filteredUpdateData.othersUrl = updateData.socialLinks.others;
     }
 
     const updatedUser = await prisma.user.update({
@@ -240,6 +246,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         currentCourse: true,
         yearSemester: true,
         interestDomain: true,
+        startupFoundedYear: true,
         linkedinUrl: true,
         instagramUrl: true,
         facebookUrl: true,
@@ -247,6 +254,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         youtubeUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        othersUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -299,6 +307,7 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
         currentCourse: true,
         yearSemester: true,
         interestDomain: true,
+        startupFoundedYear: true,
         linkedinUrl: true,
         instagramUrl: true,
         facebookUrl: true,
@@ -306,6 +315,7 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
         youtubeUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        othersUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -356,6 +366,7 @@ router.post('/complete-registration', authMiddleware, async (req: AuthenticatedR
         currentCourse: true,
         yearSemester: true,
         interestDomain: true,
+        startupFoundedYear: true,
         linkedinUrl: true,
         instagramUrl: true,
         facebookUrl: true,
@@ -363,6 +374,7 @@ router.post('/complete-registration', authMiddleware, async (req: AuthenticatedR
         youtubeUrl: true,
         githubUrl: true,
         portfolioUrl: true,
+        othersUrl: true,
         createdAt: true,
         updatedAt: true
       }
