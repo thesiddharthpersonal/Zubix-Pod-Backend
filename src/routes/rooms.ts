@@ -9,6 +9,7 @@ const router = express.Router();
 router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { podId } = req.params;
+    const userId = req.user!.id;
 
     // Check if user is a member or owner of the pod
     const pod = await prisma.pod.findUnique({
@@ -24,29 +25,39 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
       where: {
         podId_userId: {
           podId,
-          userId: req.user!.id
+          userId
         }
       }
     });
 
-    const isOwner = pod.ownerId === req.user!.id;
+    const isOwner = pod.ownerId === userId;
 
     if (!isMember && !isOwner) {
       return res.status(403).json({ error: 'You must be a member of this pod to view rooms' });
     }
 
-    const rooms = await prisma.room.findMany({
+    const allRooms = await prisma.room.findMany({
       where: { podId },
       include: {
         pod: {
           select: {
             id: true,
             name: true,
+            ownerId: true
           }
+        },
+        members: {
+          where: { userId },
+          select: { userId: true }
+        },
+        joinRequests: {
+          where: { userId, status: 'PENDING' },
+          select: { id: true, status: true }
         },
         _count: {
           select: {
-            messages: true
+            messages: true,
+            members: true
           }
         }
       },
@@ -54,6 +65,26 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
         createdAt: 'desc'
       }
     });
+
+    // Filter and format rooms based on privacy
+    const rooms = allRooms.map(room => {
+      const isMemberOfRoom = room.members.length > 0;
+      const hasPendingRequest = room.joinRequests.length > 0;
+      const isPodOwner = room.pod.ownerId === userId;
+
+      // Show private rooms only to members and pod owner
+      if (room.privacy === 'PRIVATE' && !isMemberOfRoom && !isPodOwner) {
+        return null;
+      }
+
+      return {
+        ...room,
+        isMember: isMemberOfRoom || isPodOwner,
+        joinRequestStatus: hasPendingRequest ? 'PENDING' : null,
+        members: undefined,
+        joinRequests: undefined
+      };
+    }).filter(room => room !== null);
 
     res.json({ rooms });
   } catch (error) {
@@ -66,6 +97,7 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
 router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
+    const userId = req.user!.id;
 
     const room = await prisma.room.findUnique({
       where: { id: roomId },
@@ -79,7 +111,8 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         },
         _count: {
           select: {
-            messages: true
+            messages: true,
+            members: true
           }
         }
       }
@@ -94,15 +127,31 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       where: {
         podId_userId: {
           podId: room.podId,
-          userId: req.user!.id
+          userId
         }
       }
     });
 
-    const isOwner = room.pod.ownerId === req.user!.id;
+    const isOwner = room.pod.ownerId === userId;
 
     if (!isMember && !isOwner) {
       return res.status(403).json({ error: 'You must be a member of this pod to view this room' });
+    }
+
+    // Check if room is private and user has access
+    if (room.privacy === 'PRIVATE' && !isOwner) {
+      const roomMember = await prisma.roomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId,
+            userId
+          }
+        }
+      });
+
+      if (!roomMember) {
+        return res.status(403).json({ error: 'This is a private room. You need to be approved by the pod owner to access it.' });
+      }
     }
 
     res.json({ room });
@@ -275,6 +324,7 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
   try {
     const { roomId } = req.params;
     const { limit = '50', before } = req.query;
+    const userId = req.user!.id;
 
     // Check if room exists
     const room = await prisma.room.findUnique({
@@ -298,15 +348,31 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
       where: {
         podId_userId: {
           podId: room.pod.id,
-          userId: req.user!.id
+          userId
         }
       }
     });
 
-    const isOwner = room.pod.ownerId === req.user!.id;
+    const isOwner = room.pod.ownerId === userId;
 
     if (!isMember && !isOwner) {
       return res.status(403).json({ error: 'You must be a member of this pod to view messages' });
+    }
+
+    // Check if room is private and user has access
+    if (room.privacy === 'PRIVATE' && !isOwner) {
+      const roomMember = await prisma.roomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId,
+            userId
+          }
+        }
+      });
+
+      if (!roomMember) {
+        return res.status(403).json({ error: 'This is a private room. You need to be approved by the pod owner to access messages.' });
+      }
     }
 
     const whereClause: any = {
@@ -456,6 +522,251 @@ router.delete('/:roomId/members/:userId', authMiddleware, isPodOwner, async (req
     res.status(500).json({ error: 'Failed to remove member' });
   }
 });
+
+// Request to join a private room
+router.post('/:roomId/join-request', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user!.id;
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    // Check if user is a member of the pod
+    const isMember = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: room.pod.id,
+          userId
+        }
+      }
+    });
+
+    const isOwner = room.pod.ownerId === userId;
+
+    if (!isMember && !isOwner) {
+      return res.status(403).json({ error: 'You must be a member of the pod to request joining a room' });
+    }
+
+    // Public rooms - directly add member
+    if (room.privacy === 'PUBLIC') {
+      const existingMember = await prisma.roomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId,
+            userId
+          }
+        }
+      });
+
+      if (existingMember) {
+        return res.status(400).json({ error: 'You are already a member of this room' });
+      }
+
+      await prisma.roomMember.create({
+        data: {
+          roomId,
+          userId
+        }
+      });
+
+      return res.json({ message: 'Joined room successfully', status: 'JOINED' });
+    }
+
+    // Private rooms - create join request
+    const existingRequest = await prisma.roomJoinRequest.findUnique({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId
+        }
+      }
+    });
+
+    if (existingRequest) {
+      if (existingRequest.status === 'PENDING') {
+        return res.status(400).json({ error: 'You already have a pending request for this room' });
+      } else if (existingRequest.status === 'ACCEPTED') {
+        return res.status(400).json({ error: 'Your request has already been accepted' });
+      } else if (existingRequest.status === 'REJECTED') {
+        // Update rejected request to pending
+        await prisma.roomJoinRequest.update({
+          where: { id: existingRequest.id },
+          data: { status: 'PENDING' }
+        });
+        return res.json({ message: 'Join request resubmitted', status: 'PENDING' });
+      }
+    }
+
+    await prisma.roomJoinRequest.create({
+      data: {
+        roomId,
+        userId
+      }
+    });
+
+    res.status(201).json({ message: 'Join request submitted', status: 'PENDING' });
+  } catch (error) {
+    console.error('Room join request error:', error);
+    res.status(500).json({ error: 'Failed to submit join request' });
+  }
+});
+
+// Get pending join requests for a room (pod owner only)
+router.get('/:roomId/join-requests', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        pod: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    if (room.pod.ownerId !== req.user!.id) {
+      return res.status(403).json({ error: 'Only the pod owner can view join requests' });
+    }
+
+    const joinRequests = await prisma.roomJoinRequest.findMany({
+      where: {
+        roomId,
+        status: 'PENDING'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            profilePhoto: true,
+            role: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    res.json({ joinRequests });
+  } catch (error) {
+    console.error('Get join requests error:', error);
+    res.status(500).json({ error: 'Failed to fetch join requests' });
+  }
+});
+
+// Accept or reject a join request (pod owner only)
+router.put('/:roomId/join-requests/:requestId',
+  authMiddleware,
+  isPodOwner,
+  [
+    body('status').isIn(['ACCEPTED', 'REJECTED']).withMessage('Status must be ACCEPTED or REJECTED')
+  ],
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { roomId, requestId } = req.params;
+      const { status } = req.body;
+
+      const room = await prisma.room.findUnique({
+        where: { id: roomId },
+        include: {
+          pod: {
+            select: {
+              ownerId: true
+            }
+          }
+        }
+      });
+
+      if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+
+      if (room.pod.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: 'Only the pod owner can manage join requests' });
+      }
+
+      const joinRequest = await prisma.roomJoinRequest.findUnique({
+        where: { id: requestId }
+      });
+
+      if (!joinRequest) {
+        return res.status(404).json({ error: 'Join request not found' });
+      }
+
+      if (joinRequest.roomId !== roomId) {
+        return res.status(400).json({ error: 'Join request does not belong to this room' });
+      }
+
+      if (joinRequest.status !== 'PENDING') {
+        return res.status(400).json({ error: 'This request has already been processed' });
+      }
+
+      // Update request status
+      await prisma.roomJoinRequest.update({
+        where: { id: requestId },
+        data: { status }
+      });
+
+      // If accepted, add user to room members
+      if (status === 'ACCEPTED') {
+        const existingMember = await prisma.roomMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId,
+              userId: joinRequest.userId
+            }
+          }
+        });
+
+        if (!existingMember) {
+          await prisma.roomMember.create({
+            data: {
+              roomId,
+              userId: joinRequest.userId
+            }
+          });
+        }
+      }
+
+      res.json({ 
+        message: `Join request ${status.toLowerCase()} successfully`,
+        status 
+      });
+    } catch (error) {
+      console.error('Process join request error:', error);
+      res.status(500).json({ error: 'Failed to process join request' });
+    }
+  }
+);
 
 // Get questions in a Q&A room
 router.get('/:roomId/questions', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {

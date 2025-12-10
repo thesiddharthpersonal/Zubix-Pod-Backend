@@ -225,6 +225,23 @@ const setupSocketIO = (server: HttpServer): Server => {
           return;
         }
 
+        // Check if room is private and user has access
+        if (room.privacy === 'PRIVATE' && !isOwner) {
+          const roomMember = await prisma.roomMember.findUnique({
+            where: {
+              roomId_userId: {
+                roomId,
+                userId: socket.user!.id
+              }
+            }
+          });
+
+          if (!roomMember) {
+            socket.emit('error', { message: 'This is a private room. You need to be approved by the pod owner to send messages.' });
+            return;
+          }
+        }
+
         // Save message to database
         const message = await prisma.message.create({
           data: {

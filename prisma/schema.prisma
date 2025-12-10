@@ -138,6 +138,7 @@ model User {
   notifications          Notification[]
   questions              Question[]
   answers                Answer[]
+  roomJoinRequests       RoomJoinRequest[]     @relation("UserRoomJoinRequests")
 
   @@map("users")
 }
@@ -316,10 +317,11 @@ model Room {
   updatedAt   DateTime    @updatedAt
 
   // Relations
-  pod       Pod           @relation(fields: [podId], references: [id], onDelete: Cascade)
-  messages  Message[]
-  questions Question[]
-  members   RoomMember[]
+  pod          Pod                @relation(fields: [podId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  questions    Question[]
+  members      RoomMember[]
+  joinRequests RoomJoinRequest[]  @relation("RoomJoinRequests")
 
   @@index([podId])
   @@index([type])
@@ -339,6 +341,31 @@ model RoomMember {
   @@index([roomId])
   @@index([userId])
   @@map("room_members")
+}
+
+model RoomJoinRequest {
+  id        String              @id @default(uuid())
+  roomId    String
+  userId    String
+  status    RoomRequestStatus   @default(PENDING)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  // Relations
+  room Room @relation("RoomJoinRequests", fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation("UserRoomJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+  @@index([status])
+  @@map("room_join_requests")
+}
+
+enum RoomRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 model Message {
