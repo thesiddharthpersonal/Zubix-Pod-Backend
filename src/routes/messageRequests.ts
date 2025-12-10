@@ -146,8 +146,16 @@ router.post('/',
       });
 
       if (existingRequest) {
-        res.status(400).json({ error: 'Message request already sent' });
-        return;
+        // If the request was rejected, delete it to allow sending a new one
+        if (existingRequest.status === 'REJECTED') {
+          await prisma.messageRequest.delete({
+            where: { id: existingRequest.id }
+          });
+        } else {
+          // If request is pending or accepted, don't allow sending another
+          res.status(400).json({ error: 'Message request already sent' });
+          return;
+        }
       }
 
       // Check if chat already exists between these users
