@@ -153,6 +153,7 @@ model Pod {
   focusAreas                String[]
   organisationName          String?
   organisationType          OrganisationType?
+  organisationEmail         String?
   operatingCity             String?
   totalInvestmentSize       String?
   numberOfInvestments       Int?
