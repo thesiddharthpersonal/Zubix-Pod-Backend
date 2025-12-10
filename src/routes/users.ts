@@ -69,9 +69,7 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       where: { id: userId },
       select: {
         id: true,
-        email: true,
         username: true,
-        mobile: true,
         role: true,
         fullName: true,
         bio: true,
