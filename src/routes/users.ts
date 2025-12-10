@@ -123,7 +123,7 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
 });
 
 // Search users
-router.get('/search/query', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { q } = req.query;
 
