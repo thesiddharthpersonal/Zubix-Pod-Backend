@@ -66,17 +66,13 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
       }
     });
 
-    // Filter and format rooms based on privacy
+    // Format rooms and include privacy/membership info
     const rooms = allRooms.map(room => {
       const isMemberOfRoom = room.members.length > 0;
       const hasPendingRequest = room.joinRequests.length > 0;
       const isPodOwner = room.pod.ownerId === userId;
 
-      // Show private rooms only to members and pod owner
-      if (room.privacy === 'PRIVATE' && !isMemberOfRoom && !isPodOwner) {
-        return null;
-      }
-
+      // Show all rooms to pod members, but indicate membership status
       return {
         ...room,
         isMember: isMemberOfRoom || isPodOwner,
@@ -84,7 +80,7 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
         members: undefined,
         joinRequests: undefined
       };
-    }).filter(room => room !== null);
+    });
 
     res.json({ rooms });
   } catch (error) {
