@@ -10,9 +10,9 @@ const router = express.Router();
 // Search pods by name
 router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const { query } = req.query;
+    const { q } = req.query;
 
-    if (!query) {
+    if (!q) {
       res.status(400).json({ error: 'Search query is required' });
       return;
     }
@@ -21,7 +21,7 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
       where: {
         isPublic: true,
         name: {
-          contains: query as string,
+          contains: q as string,
           mode: 'insensitive'
         }
       },
