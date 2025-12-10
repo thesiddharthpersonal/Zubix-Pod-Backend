@@ -384,7 +384,6 @@ router.delete('/:pitchId', authMiddleware, async (req: AuthenticatedRequest, res
 // Update pitch status (pod owner/co-owner only)
 router.patch('/:pitchId/status',
   authMiddleware,
-  isPodOwner,
   [
     body('status').notEmpty().withMessage('Status is required')
   ],
@@ -464,7 +463,6 @@ router.patch('/:pitchId/status',
 // Add a reply to a pitch (pod owner/co-owner only)
 router.post('/:pitchId/replies',
   authMiddleware,
-  isPodOwner,
   [
     body('content').notEmpty().withMessage('Reply content is required')
   ],
@@ -483,9 +481,6 @@ router.post('/:pitchId/replies',
         where: { id: pitchId },
         include: {
           pod: {
-            select: {
-              ownerId: true
-            },
             include: {
               coOwners: {
                 select: { id: true }
@@ -503,8 +498,26 @@ router.post('/:pitchId/replies',
       const isOwner = pitch.pod.ownerId === req.user!.id;
       const isCoOwner = pitch.pod.coOwners.some(co => co.id === req.user!.id);
 
+      console.log('Reply attempt:', {
+        userId: req.user!.id,
+        pitchId,
+        podOwnerId: pitch.pod.ownerId,
+        coOwners: pitch.pod.coOwners.map(co => co.id),
+        isOwner,
+        isCoOwner
+      });
+
       if (!isOwner && !isCoOwner) {
-        res.status(403).json({ error: 'Only pod owners/co-owners can reply to pitches' });
+        console.log('Permission denied: User is not owner or co-owner');
+        res.status(403).json({ 
+          error: 'Only pod owners/co-owners can reply to pitches',
+          details: {
+            isOwner,
+            isCoOwner,
+            userId: req.user!.id,
+            podOwnerId: pitch.pod.ownerId
+          }
+        });
         return;
       }
 
@@ -534,9 +547,15 @@ router.post('/:pitchId/replies',
         });
       }
 
+      console.log('Reply created successfully:', reply.id);
+
       res.status(201).json({ reply });
     } catch (error) {
       console.error('Create reply error:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       res.status(500).json({ error: 'Failed to create reply' });
     }
   }

@@ -384,6 +384,49 @@ router.get('/:userId/pods', authMiddleware, async (req: AuthenticatedRequest, re
             profilePhoto: true
           }
         },
+        coOwners: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            profilePhoto: true
+          }
+        },
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
+
+    // Get pods where user is a co-owner
+    const coOwnedPods = await prisma.pod.findMany({
+      where: {
+        coOwners: {
+          some: {
+            id: userId
+          }
+        }
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            profilePhoto: true
+          }
+        },
+        coOwners: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            profilePhoto: true
+          }
+        },
         _count: {
           select: {
             members: true,
@@ -407,6 +450,14 @@ router.get('/:userId/pods', authMiddleware, async (req: AuthenticatedRequest, re
                 profilePhoto: true
               }
             },
+            coOwners: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profilePhoto: true
+              }
+            },
             _count: {
               select: {
                 members: true,
@@ -418,11 +469,14 @@ router.get('/:userId/pods', authMiddleware, async (req: AuthenticatedRequest, re
       }
     });
 
-    // Combine and format the results
-    const pods = [
-      ...ownedPods,
-      ...memberPods.map(m => m.pod)
-    ];
+    // Combine and format the results, removing duplicates
+    const podMap = new Map();
+    [...ownedPods, ...coOwnedPods, ...memberPods.map(m => m.pod)].forEach(pod => {
+      if (!podMap.has(pod.id)) {
+        podMap.set(pod.id, pod);
+      }
+    });
+    const pods = Array.from(podMap.values());
 
     res.json({ pods });
   } catch (error) {
