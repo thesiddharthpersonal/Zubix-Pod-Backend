@@ -41,7 +41,6 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
       },
       select: {
         id: true,
-        email: true,
         username: true,
         fullName: true,
         profilePhoto: true,
@@ -128,9 +127,7 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
       where: { username },
       select: {
         id: true,
-        email: true,
         username: true,
-        mobile: true,
         role: true,
         fullName: true,
         bio: true,

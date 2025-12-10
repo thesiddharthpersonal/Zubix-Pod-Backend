@@ -24,8 +24,6 @@ router.get('/received', authMiddleware, async (req: AuthenticatedRequest, res: R
             username: true,
             fullName: true,
             profilePhoto: true,
-            email: true,
-            mobile: true,
             role: true,
             createdAt: true
           }
@@ -60,8 +58,6 @@ router.get('/sent', authMiddleware, async (req: AuthenticatedRequest, res: Respo
             username: true,
             fullName: true,
             profilePhoto: true,
-            email: true,
-            mobile: true,
             role: true,
             createdAt: true
           }
@@ -194,8 +190,6 @@ router.post('/',
               username: true,
               fullName: true,
               profilePhoto: true,
-              email: true,
-              mobile: true,
               role: true,
               createdAt: true
             }
@@ -206,8 +200,6 @@ router.post('/',
               username: true,
               fullName: true,
               profilePhoto: true,
-              email: true,
-              mobile: true,
               role: true,
               createdAt: true
             }
@@ -276,8 +268,6 @@ router.post('/:requestId/accept', authMiddleware, async (req: AuthenticatedReque
                 username: true,
                 fullName: true,
                 profilePhoto: true,
-                email: true,
-                mobile: true,
                 role: true,
                 createdAt: true
               }

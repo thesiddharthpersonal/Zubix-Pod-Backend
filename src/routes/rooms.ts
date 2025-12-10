@@ -507,8 +507,6 @@ router.get('/:roomId/questions', authMiddleware, async (req: AuthenticatedReques
             username: true,
             fullName: true,
             profilePhoto: true,
-            email: true,
-            mobile: true,
             role: true,
             createdAt: true
           }
@@ -521,8 +519,6 @@ router.get('/:roomId/questions', authMiddleware, async (req: AuthenticatedReques
                 username: true,
                 fullName: true,
                 profilePhoto: true,
-                email: true,
-                mobile: true,
                 role: true,
                 createdAt: true
               }
@@ -610,8 +606,6 @@ router.post('/:roomId/questions',
               username: true,
               fullName: true,
               profilePhoto: true,
-              email: true,
-              mobile: true,
               role: true,
               createdAt: true
             }
@@ -721,8 +715,6 @@ router.get('/:roomId/questions/:questionId/answers', authMiddleware, async (req:
             username: true,
             fullName: true,
             profilePhoto: true,
-            email: true,
-            mobile: true,
             role: true,
             createdAt: true
           }
@@ -805,8 +797,6 @@ router.post('/:roomId/questions/:questionId/answers',
               username: true,
               fullName: true,
               profilePhoto: true,
-              email: true,
-              mobile: true,
               role: true,
               createdAt: true
             }

@@ -50,8 +50,7 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
             id: true,
             username: true,
             fullName: true,
-            avatar: true,
-            email: true
+            avatar: true
           }
         },
         pod: {
@@ -151,9 +150,7 @@ router.get('/:pitchId', authMiddleware, async (req: AuthenticatedRequest, res: R
             id: true,
             username: true,
             fullName: true,
-            avatar: true,
-            email: true,
-            mobile: true
+            avatar: true
           }
         },
         pod: {
