@@ -87,6 +87,7 @@ model User {
   
   // Additional profile fields
   profilePhoto               String?
+  professionCategory         String?
   organisationName           String?
   brandName                  String?
   designation                String?

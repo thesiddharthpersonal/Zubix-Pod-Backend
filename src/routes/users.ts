@@ -22,6 +22,7 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         fullName: true,
         bio: true,
         profilePhoto: true,
+        professionCategory: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -70,6 +71,7 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
         fullName: true,
         bio: true,
         profilePhoto: true,
+        professionCategory: true,
         organisationName: true,
         brandName: true,
         designation: true,
@@ -142,6 +144,7 @@ router.get('/search/query', authMiddleware, async (req: AuthenticatedRequest, re
         fullName: true,
         profilePhoto: true,
         role: true,
+        professionCategory: true,
         organisationName: true,
         designation: true,
         operatingCity: true
@@ -170,7 +173,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
 
     // Define valid User model fields
     const validUserFields = [
-      'mobile', 'fullName', 'bio', 'avatar', 'profilePhoto',
+      'mobile', 'fullName', 'bio', 'avatar', 'profilePhoto', 'professionCategory',
       'organisationName', 'brandName', 'designation',
       'workingExperienceFrom', 'workingExperienceTo',
       'startupSubcategory', 'businessType', 'briefAboutOrganisation',
