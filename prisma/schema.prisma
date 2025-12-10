@@ -164,6 +164,43 @@ model Pod {
   twitterUrl                String?
   youtubeUrl                String?
   website                   String?
+  
+  // Incubation
+  supportedDomains          String[]         @default([])
+  supportedStages           String[]         @default([])
+  
+  // Community
+  communityType             String?
+  
+  // Venture Capital, Angel Investor, Angel Network
+  investmentAreas           String[]         @default([])
+  investmentStages          String[]         @default([])
+  chequeSize                String?
+  investmentThesis          String?
+  
+  // Service Provider
+  serviceType               String?
+  
+  // Accelerator
+  programmeDuration         String?
+  numberOfStartups          Int?
+  focusedSectors            String[]         @default([])
+  benefits                  String?
+  
+  // Corporate Innovation
+  innovationFocusArea       String?
+  collaborationModel        String?
+  fundingGrantSupport       String?
+  
+  // Government Programme
+  schemeName                String?
+  programmeObjectives       String?
+  benefitsOffered           String?
+  eligibilityCriteria       String?
+  
+  // University E Cell
+  eventsConducted           String[]         @default([])
+  
   isPublic                  Boolean          @default(true)
   isApproved                Boolean          @default(false)
   isVerified                Boolean          @default(false)
