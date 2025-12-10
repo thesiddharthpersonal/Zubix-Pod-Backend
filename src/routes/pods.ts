@@ -343,10 +343,7 @@ router.post('/',
       // Map social links if provided
       if (socialLinks) {
         podData.linkedinUrl = socialLinks.linkedin || null;
-        podData.instagramUrl = socialLinks.instagram || null;
-        podData.facebookUrl = socialLinks.facebook || null;
-        podData.twitterUrl = socialLinks.twitter || null;
-        podData.youtubeUrl = socialLinks.youtube || null;
+        podData.othersUrl = socialLinks.others || null;
       }
 
       const pod = await prisma.pod.create({

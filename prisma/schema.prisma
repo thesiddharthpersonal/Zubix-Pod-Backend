@@ -163,6 +163,7 @@ model Pod {
   facebookUrl               String?
   twitterUrl                String?
   youtubeUrl                String?
+  othersUrl                 String?
   website                   String?
   
   // Incubation
