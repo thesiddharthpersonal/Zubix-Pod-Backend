@@ -14,7 +14,10 @@ router.get('/received', authMiddleware, async (req: AuthenticatedRequest, res: R
 
     const requests = await prisma.messageRequest.findMany({
       where: {
-        receiverId: userId
+        receiverId: userId,
+        status: {
+          not: 'REJECTED'
+        }
       },
       include: {
         sender: {
@@ -49,7 +52,10 @@ router.get('/sent', authMiddleware, async (req: AuthenticatedRequest, res: Respo
 
     const requests = await prisma.messageRequest.findMany({
       where: {
-        senderId: userId
+        senderId: userId,
+        status: {
+          not: 'REJECTED'
+        }
       },
       include: {
         receiver: {
