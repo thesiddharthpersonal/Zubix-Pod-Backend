@@ -105,6 +105,8 @@ model User {
   interestDomain             String?
   // Startup specific fields
   startupFoundedYear         String?
+  // Working professional specific fields
+  workingDomain              String?
   linkedinUrl                String?
   instagramUrl               String?
   facebookUrl                String?
