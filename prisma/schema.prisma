@@ -164,6 +164,7 @@ model Pod {
   twitterUrl                String?
   youtubeUrl                String?
   othersUrl                 String?
+  additionalLinks           String[]         @default([])
   website                   String?
   
   // Incubation

@@ -344,6 +344,7 @@ router.post('/',
       if (socialLinks) {
         podData.linkedinUrl = socialLinks.linkedin || null;
         podData.othersUrl = socialLinks.others || null;
+        podData.additionalLinks = socialLinks.additionalLinks || [];
       }
 
       const pod = await prisma.pod.create({
