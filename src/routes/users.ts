@@ -6,6 +6,61 @@ import { ApiResponse } from '../utils/responses.js';
 
 const router = express.Router();
 
+// Search users - MUST be before /:userId route
+router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { q } = req.query;
+
+    if (!q || typeof q !== 'string') {
+      res.status(400).json({ error: 'Search query is required' });
+      return;
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          {
+            username: {
+              contains: q,
+              mode: 'insensitive'
+            }
+          },
+          {
+            fullName: {
+              contains: q,
+              mode: 'insensitive'
+            }
+          },
+          {
+            email: {
+              contains: q,
+              mode: 'insensitive'
+            }
+          }
+        ]
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        fullName: true,
+        profilePhoto: true,
+        role: true,
+        professionCategory: true,
+        organisationName: true,
+        designation: true,
+        operatingCity: true
+      },
+      take: 20
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({ error: 'Failed to search users' });
+  }
+});
+
 // Get user profile by ID
 router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -119,61 +174,6 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
   } catch (error) {
     console.error('Get user by username error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
-  }
-});
-
-// Search users
-router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { q } = req.query;
-
-    if (!q || typeof q !== 'string') {
-      res.status(400).json({ error: 'Search query is required' });
-      return;
-    }
-
-    const users = await prisma.user.findMany({
-      where: {
-        OR: [
-          {
-            username: {
-              contains: q,
-              mode: 'insensitive'
-            }
-          },
-          {
-            fullName: {
-              contains: q,
-              mode: 'insensitive'
-            }
-          },
-          {
-            email: {
-              contains: q,
-              mode: 'insensitive'
-            }
-          }
-        ]
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        fullName: true,
-        profilePhoto: true,
-        role: true,
-        professionCategory: true,
-        organisationName: true,
-        designation: true,
-        operatingCity: true
-      },
-      take: 20
-    });
-
-    res.json({ users });
-  } catch (error) {
-    console.error('Search users error:', error);
-    res.status(500).json({ error: 'Failed to search users' });
   }
 });
 
