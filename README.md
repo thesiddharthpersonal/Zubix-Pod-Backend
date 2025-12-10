@@ -458,4 +458,4 @@ For support, email support@zubix.com or open an issue in the repository.
 
 Built with ❤️ using Node.js, Express, Prisma, PostgreSQL, and Socket.IO
 #   z u b i x - p o d - b a c k e n d  
- 
+ # Zubix-Pod-Backend
