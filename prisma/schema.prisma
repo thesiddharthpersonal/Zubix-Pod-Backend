@@ -108,6 +108,8 @@ model User {
   facebookUrl                String?
   twitterUrl                 String?
   youtubeUrl                 String?
+  githubUrl                  String?
+  portfolioUrl               String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

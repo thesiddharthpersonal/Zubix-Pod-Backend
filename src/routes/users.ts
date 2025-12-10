@@ -42,6 +42,8 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         facebookUrl: true,
         twitterUrl: true,
         youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -95,6 +97,8 @@ router.get('/username/:username', authMiddleware, async (req: AuthenticatedReque
         facebookUrl: true,
         twitterUrl: true,
         youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -188,7 +192,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       'operatingCity', 'website',
       'collegeName', 'currentCourse', 'yearSemester', 'interestDomain',
       'linkedinUrl', 'instagramUrl',
-      'facebookUrl', 'twitterUrl', 'youtubeUrl'
+      'facebookUrl', 'twitterUrl', 'youtubeUrl', 'githubUrl', 'portfolioUrl'
     ];
 
     // Filter to only include valid User fields
@@ -206,6 +210,8 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       if (updateData.socialLinks.facebook !== undefined) filteredUpdateData.facebookUrl = updateData.socialLinks.facebook;
       if (updateData.socialLinks.twitter !== undefined) filteredUpdateData.twitterUrl = updateData.socialLinks.twitter;
       if (updateData.socialLinks.youtube !== undefined) filteredUpdateData.youtubeUrl = updateData.socialLinks.youtube;
+      if (updateData.socialLinks.github !== undefined) filteredUpdateData.githubUrl = updateData.socialLinks.github;
+      if (updateData.socialLinks.portfolio !== undefined) filteredUpdateData.portfolioUrl = updateData.socialLinks.portfolio;
     }
 
     const updatedUser = await prisma.user.update({
@@ -239,6 +245,8 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         facebookUrl: true,
         twitterUrl: true,
         youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -296,6 +304,8 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
         facebookUrl: true,
         twitterUrl: true,
         youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
         createdAt: true,
         updatedAt: true
       }
@@ -351,6 +361,8 @@ router.post('/complete-registration', authMiddleware, async (req: AuthenticatedR
         facebookUrl: true,
         twitterUrl: true,
         youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
         createdAt: true,
         updatedAt: true
       }
