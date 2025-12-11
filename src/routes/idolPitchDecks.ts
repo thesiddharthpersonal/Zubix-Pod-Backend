@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import prisma from '../utils/prisma';
-import { asyncHandler } from '../utils/asyncHandler';
+import prisma from '../utils/prisma.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
