@@ -181,9 +181,9 @@ const setupSocketIO = (server: HttpServer): Server => {
     });
 
     // Send a message
-    socket.on('send-message', async (data: { roomId: string; content: string }) => {
+    socket.on('send-message', async (data: { roomId: string; content: string; replyToId?: string }) => {
       try {
-        const { roomId, content } = data;
+        const { roomId, content, replyToId } = data;
 
         if (!content || !content.trim()) {
           socket.emit('error', { message: 'Message content is required' });
@@ -247,7 +247,8 @@ const setupSocketIO = (server: HttpServer): Server => {
           data: {
             content: content.trim(),
             roomId,
-            senderId: socket.user!.id
+            senderId: socket.user!.id,
+            replyToId: replyToId || undefined
           },
           include: {
             sender: {
@@ -258,6 +259,21 @@ const setupSocketIO = (server: HttpServer): Server => {
                 role: true,
                 profilePhoto: true,
                 createdAt: true
+              }
+            },
+            replyTo: {
+              select: {
+                id: true,
+                content: true,
+                senderId: true,
+                sender: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    profilePhoto: true
+                  }
+                }
               }
             }
           }

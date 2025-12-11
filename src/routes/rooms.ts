@@ -396,6 +396,21 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
             fullName: true,
             profilePhoto: true
           }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                profilePhoto: true
+              }
+            }
+          }
         }
       },
       orderBy: {
