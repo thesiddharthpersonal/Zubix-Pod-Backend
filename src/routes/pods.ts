@@ -332,7 +332,12 @@ router.post('/',
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        res.status(400).json({ errors: errors.array() });
+        console.error('Pod creation validation errors:', JSON.stringify(errors.array(), null, 2));
+        res.status(400).json({ 
+          error: 'Validation failed',
+          errors: errors.array(),
+          details: errors.array().map(e => `${e.path}: ${e.msg}`)
+        });
         return;
       }
 
@@ -448,6 +453,32 @@ router.post('/',
           isCoOwner: false
         }
       });
+
+      // Add co-owners if provided
+      if (coOwnerUsernames && coOwnerUsernames.length > 0) {
+        const coOwnerUsers = await prisma.user.findMany({
+          where: {
+            username: {
+              in: coOwnerUsernames
+            }
+          },
+          select: {
+            id: true,
+            username: true
+          }
+        });
+
+        if (coOwnerUsers.length > 0) {
+          await prisma.podMember.createMany({
+            data: coOwnerUsers.map(user => ({
+              podId: pod.id,
+              userId: user.id,
+              isCoOwner: true
+            })),
+            skipDuplicates: true
+          });
+        }
+      }
 
       res.status(201).json({ pod });
     } catch (error) {
