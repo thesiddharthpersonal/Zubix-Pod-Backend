@@ -562,16 +562,15 @@ router.put('/:podId',
       if (numberOfInvestments !== undefined) updateData.numberOfInvestments = numberOfInvestments;
       if (briefAboutOrganisation !== undefined) updateData.briefAboutOrganisation = briefAboutOrganisation;
       
-      // Social links
+      // Social links (Pod model only has linkedin, instagram, facebook, twitter, youtube, others)
       if (socialLinks !== undefined) {
         if (socialLinks.linkedin !== undefined) updateData.linkedinUrl = socialLinks.linkedin;
         if (socialLinks.instagram !== undefined) updateData.instagramUrl = socialLinks.instagram;
         if (socialLinks.facebook !== undefined) updateData.facebookUrl = socialLinks.facebook;
         if (socialLinks.twitter !== undefined) updateData.twitterUrl = socialLinks.twitter;
         if (socialLinks.youtube !== undefined) updateData.youtubeUrl = socialLinks.youtube;
-        if (socialLinks.github !== undefined) updateData.githubUrl = socialLinks.github;
-        if (socialLinks.portfolio !== undefined) updateData.portfolioUrl = socialLinks.portfolio;
         if (socialLinks.others !== undefined) updateData.othersUrl = socialLinks.others;
+        // Note: Pod model doesn't have githubUrl or portfolioUrl fields
       }
 
       // Advanced fields
@@ -636,6 +635,8 @@ router.put('/:podId',
         }
       }
 
+      console.log('Updating pod with data:', JSON.stringify(updateData, null, 2));
+
       const updatedPod = await prisma.pod.update({
         where: { id: podId },
         data: updateData,
@@ -679,8 +680,6 @@ router.put('/:podId',
           facebook: updatedPod.facebookUrl,
           twitter: updatedPod.twitterUrl,
           youtube: updatedPod.youtubeUrl,
-          github: updatedPod.githubUrl,
-          portfolio: updatedPod.portfolioUrl,
           others: updatedPod.othersUrl
         },
         coOwners: updatedPod.members.map(m => ({
@@ -692,9 +691,18 @@ router.put('/:podId',
       };
 
       res.json({ pod: formattedPod });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update pod error:', error);
-      res.status(500).json({ error: 'Failed to update pod' });
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        meta: error.meta,
+        stack: error.stack
+      });
+      res.status(500).json({ 
+        error: 'Failed to update pod',
+        details: error.message 
+      });
     }
   }
 );
