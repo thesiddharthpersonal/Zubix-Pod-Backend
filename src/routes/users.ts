@@ -255,6 +255,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
         githubUrl: true,
         portfolioUrl: true,
         othersUrl: true,
+        additionalLinks: true,
         createdAt: true,
         updatedAt: true
       }
@@ -263,7 +264,15 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
     res.json({ user: updatedUser });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    res.status(500).json({ 
+      error: 'Failed to update profile',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -317,6 +326,7 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
         githubUrl: true,
         portfolioUrl: true,
         othersUrl: true,
+        additionalLinks: true,
         createdAt: true,
         updatedAt: true
       }
@@ -325,7 +335,15 @@ router.put('/profile', authMiddleware, async (req: AuthenticatedRequest, res: Re
     res.json({ user: updatedUser });
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    res.status(500).json({ 
+      error: 'Failed to update profile',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

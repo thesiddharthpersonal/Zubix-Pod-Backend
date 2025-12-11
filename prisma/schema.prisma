@@ -115,6 +115,7 @@ model User {
   githubUrl                  String?
   portfolioUrl               String?
   othersUrl                  String?
+  additionalLinks            String[]         @default([])
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
