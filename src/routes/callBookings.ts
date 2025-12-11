@@ -143,10 +143,9 @@ router.post('/',
       // Check if pod exists
       const pod = await prisma.pod.findUnique({
         where: { id: podId },
-        include: {
-          coOwners: {
-            select: { id: true }
-          }
+        select: {
+          id: true,
+          ownerId: true
         }
       });
 
@@ -157,7 +156,19 @@ router.post('/',
 
       // Verify target user role
       const isOwner = pod.ownerId === targetUserId;
-      const isCoOwner = pod.coOwners.some(co => co.id === targetUserId);
+      
+      // Check if target user is a co-owner via PodMember table
+      const coOwnerMembership = await prisma.podMember.findUnique({
+        where: {
+          podId_userId: {
+            podId,
+            userId: targetUserId
+          }
+        },
+        select: { isCoOwner: true }
+      });
+      
+      const isCoOwner = coOwnerMembership?.isCoOwner || false;
 
       if (targetRole === 'owner' && !isOwner) {
         res.status(400).json({ error: 'Target user is not the owner of this pod' });
