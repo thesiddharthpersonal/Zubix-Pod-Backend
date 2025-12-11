@@ -277,7 +277,7 @@ router.get('/:postId', authMiddleware, async (req: AuthenticatedRequest, res: Re
 router.post('/',
   authMiddleware,
   [
-    body('content').notEmpty().withMessage('Content is required'),
+    body('content').optional().isString(),
     body('podId').notEmpty().withMessage('Pod ID is required'),
     body('mediaUrls').optional().isArray()
   ],
@@ -290,6 +290,12 @@ router.post('/',
       }
 
       const { content, podId, mediaUrls = [] } = req.body;
+
+      // Validate that either content or media is provided
+      if (!content?.trim() && mediaUrls.length === 0) {
+        res.status(400).json({ error: 'Post must have content or media' });
+        return;
+      }
 
       // Check if user is member, owner, or co-owner of the pod
       const access = await checkPodAccess(podId, req.user!.id);
