@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/auth.js';
+import { authMiddleware, isPodOwner, isPodOwnerOrCoOwner, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
 
@@ -129,13 +129,15 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
     });
 
     const isOwner = room.pod.ownerId === userId;
+    const isCoOwner = isMember?.isCoOwner || false;
+    const isOwnerOrCoOwner = isOwner || isCoOwner;
 
     if (!isMember && !isOwner) {
       return res.status(403).json({ error: 'You must be a member of this pod to view this room' });
     }
 
-    // Check if room is private and user has access
-    if (room.privacy === 'PRIVATE' && !isOwner) {
+    // Check if room is private and user has access (owners and co-owners can access all rooms)
+    if (room.privacy === 'PRIVATE' && !isOwnerOrCoOwner) {
       const roomMember = await prisma.roomMember.findUnique({
         where: {
           roomId_userId: {
@@ -146,7 +148,7 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       });
 
       if (!roomMember) {
-        return res.status(403).json({ error: 'This is a private room. You need to be approved by the pod owner to access it.' });
+        return res.status(403).json({ error: 'This is a private room. You need to be approved by the pod owner or co-owner to access it.' });
       }
     }
 
@@ -160,7 +162,7 @@ router.get('/:roomId', authMiddleware, async (req: AuthenticatedRequest, res: Re
 // Create a room (pod owner only)
 router.post('/',
   authMiddleware,
-  isPodOwner,
+  isPodOwnerOrCoOwner,
   [
     body('name').isLength({ min: 3 }).withMessage('Room name must be at least 3 characters'),
     body('description').optional().isString(),
@@ -230,7 +232,7 @@ router.post('/',
 // Update a room (pod owner only)
 router.put('/:roomId',
   authMiddleware,
-  isPodOwner,
+  isPodOwnerOrCoOwner,
   [
     body('name').optional().isLength({ min: 3 }),
     body('description').optional().isString(),
@@ -293,7 +295,7 @@ router.put('/:roomId',
 );
 
 // Delete a room (pod owner only)
-router.delete('/:roomId', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:roomId', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
 
@@ -430,7 +432,7 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
 // Add member to a private room (owner only)
 router.post('/:roomId/members',
   authMiddleware,
-  isPodOwner,
+  isPodOwnerOrCoOwner,
   [
     body('userId').notEmpty().withMessage('User ID is required')
   ],
@@ -493,7 +495,7 @@ router.post('/:roomId/members',
 );
 
 // Remove member from room (owner only)
-router.delete('/:roomId/members/:userId', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:roomId/members/:userId', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, userId } = req.params;
 
@@ -635,7 +637,7 @@ router.post('/:roomId/join-request', authMiddleware, async (req: AuthenticatedRe
 });
 
 // Get pending join requests for a room (pod owner only)
-router.get('/:roomId/join-requests', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:roomId/join-requests', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
 
@@ -690,7 +692,7 @@ router.get('/:roomId/join-requests', authMiddleware, isPodOwner, async (req: Aut
 // Accept or reject a join request (pod owner only)
 router.put('/:roomId/join-requests/:requestId',
   authMiddleware,
-  isPodOwner,
+  isPodOwnerOrCoOwner,
   [
     body('status').isIn(['ACCEPTED', 'REJECTED']).withMessage('Status must be ACCEPTED or REJECTED')
   ],
