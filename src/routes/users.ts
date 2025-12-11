@@ -194,7 +194,8 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       'collegeName', 'currentCourse', 'yearSemester', 'interestDomain',
       'startupFoundedYear', 'workingDomain',
       'linkedinUrl', 'instagramUrl',
-      'facebookUrl', 'twitterUrl', 'youtubeUrl', 'githubUrl', 'portfolioUrl', 'othersUrl'
+      'facebookUrl', 'twitterUrl', 'youtubeUrl', 'githubUrl', 'portfolioUrl', 'othersUrl',
+      'additionalLinks'
     ];
 
     // Filter to only include valid User fields
