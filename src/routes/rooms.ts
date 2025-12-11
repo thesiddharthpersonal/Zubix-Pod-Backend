@@ -179,19 +179,7 @@ router.post('/',
 
       const { name, description, podId, type, privacy } = req.body;
 
-      // Check if user owns the pod
-      const pod = await prisma.pod.findUnique({
-        where: { id: podId }
-      });
-
-      if (!pod) {
-        return res.status(404).json({ error: 'Pod not found' });
-      }
-
-      if (pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'You are not the owner of this pod' });
-      }
-
+      // Middleware already verified user is owner or co-owner
       const room = await prisma.room.create({
         data: {
           name,
@@ -264,10 +252,7 @@ router.put('/:roomId',
         return res.status(404).json({ error: 'Room not found' });
       }
 
-      if (room.pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'You are not the owner of this pod' });
-      }
-
+      // Middleware already verified user is owner or co-owner
       const updatedRoom = await prisma.room.update({
         where: { id: roomId },
         data: {
@@ -315,10 +300,7 @@ router.delete('/:roomId', authMiddleware, isPodOwnerOrCoOwner, async (req: Authe
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    if (room.pod.ownerId !== req.user!.id) {
-      return res.status(403).json({ error: 'You are not the owner of this pod' });
-    }
-
+    // Middleware already verified user is owner or co-owner
     await prisma.room.delete({
       where: { id: roomId }
     });
@@ -461,10 +443,7 @@ router.post('/:roomId/members',
         return res.status(404).json({ error: 'Room not found' });
       }
 
-      if (room.pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'You are not the owner of this pod' });
-      }
-
+      // Middleware already verified user is owner or co-owner
       // Check if already a member
       const existingMember = await prisma.roomMember.findUnique({
         where: {
@@ -514,10 +493,7 @@ router.delete('/:roomId/members/:userId', authMiddleware, isPodOwnerOrCoOwner, a
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    if (room.pod.ownerId !== req.user!.id) {
-      return res.status(403).json({ error: 'You are not the owner of this pod' });
-    }
-
+    // Middleware already verified user is owner or co-owner
     await prisma.roomMember.delete({
       where: {
         roomId_userId: {
@@ -656,10 +632,7 @@ router.get('/:roomId/join-requests', authMiddleware, isPodOwnerOrCoOwner, async 
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    if (room.pod.ownerId !== req.user!.id) {
-      return res.status(403).json({ error: 'Only the pod owner can view join requests' });
-    }
-
+    // Middleware already verified user is owner or co-owner
     const joinRequests = await prisma.roomJoinRequest.findMany({
       where: {
         roomId,
@@ -721,10 +694,7 @@ router.put('/:roomId/join-requests/:requestId',
         return res.status(404).json({ error: 'Room not found' });
       }
 
-      if (room.pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'Only the pod owner can manage join requests' });
-      }
-
+      // Middleware already verified user is owner or co-owner
       const joinRequest = await prisma.roomJoinRequest.findUnique({
         where: { id: requestId }
       });
