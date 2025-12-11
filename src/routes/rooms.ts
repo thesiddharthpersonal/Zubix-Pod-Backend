@@ -233,7 +233,8 @@ router.put('/:roomId',
   isPodOwner,
   [
     body('name').optional().isLength({ min: 3 }),
-    body('description').optional().isString()
+    body('description').optional().isString(),
+    body('privacy').optional().isIn(['PUBLIC', 'PRIVATE'])
   ],
   async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -243,7 +244,7 @@ router.put('/:roomId',
       }
 
       const { roomId } = req.params;
-      const { name, description } = req.body;
+      const { name, description, privacy } = req.body;
 
       // Check if room exists and user owns the pod
       const room = await prisma.room.findUnique({
@@ -269,13 +270,15 @@ router.put('/:roomId',
         where: { id: roomId },
         data: {
           ...(name && { name }),
-          ...(description !== undefined && { description })
+          ...(description !== undefined && { description }),
+          ...(privacy && { privacy })
         },
         include: {
           pod: {
             select: {
               id: true,
               name: true,
+              ownerId: true
             }
           }
         }
