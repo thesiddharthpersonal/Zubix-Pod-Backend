@@ -336,7 +336,7 @@ router.post('/',
         res.status(400).json({ 
           error: 'Validation failed',
           errors: errors.array(),
-          details: errors.array().map(e => `${e.path}: ${e.msg}`)
+          details: errors.array().map(e => `${(e as any).path || 'unknown'}: ${e.msg}`)
         });
         return;
       }
@@ -379,7 +379,8 @@ router.post('/',
         programmeObjectives,
         benefitsOffered,
         eligibilityCriteria,
-        eventsConducted
+        eventsConducted,
+        coOwnerUsernames
       } = req.body;
 
       // Map socialLinks to individual URL fields
