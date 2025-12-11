@@ -147,14 +147,31 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
       }
     });
 
-    // Combine and deduplicate pods
-    const memberPods = podMemberships.map(membership => membership.pod);
-    const allPods = [...ownedPods, ...memberPods];
+    // Combine and deduplicate pods with co-owner status
+    const memberPodsWithStatus = podMemberships.map(membership => ({
+      ...membership.pod,
+      isCoOwner: membership.isCoOwner, // Add co-owner flag to each pod
+      userRole: membership.pod.ownerId === req.user!.id ? 'owner' : (membership.isCoOwner ? 'co-owner' : 'member')
+    }));
     
-    // Remove duplicates by pod ID
-    const uniquePods = Array.from(
-      new Map(allPods.map(pod => [pod.id, pod])).values()
-    );
+    const ownedPodsWithStatus = ownedPods.map(pod => ({
+      ...pod,
+      isCoOwner: false, // Owners are not co-owners
+      userRole: 'owner'
+    }));
+    
+    const allPods = [...ownedPodsWithStatus, ...memberPodsWithStatus];
+    
+    // Remove duplicates by pod ID, keeping the one with highest privilege
+    const podMap = new Map();
+    allPods.forEach(pod => {
+      const existing = podMap.get(pod.id);
+      if (!existing || pod.userRole === 'owner' || (pod.userRole === 'co-owner' && existing.userRole === 'member')) {
+        podMap.set(pod.id, pod);
+      }
+    });
+    
+    const uniquePods = Array.from(podMap.values());
 
     res.json({ pods: uniquePods });
   } catch (error) {
