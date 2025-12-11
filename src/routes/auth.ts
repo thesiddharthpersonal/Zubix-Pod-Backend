@@ -139,7 +139,59 @@ router.post('/login',
 
 // Get current user
 router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  res.json({ user: req.user });
+  try {
+    // Fetch complete user profile
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        fullName: true,
+        email: true,
+        mobile: true,
+        bio: true,
+        profilePhoto: true,
+        professionCategory: true,
+        organisationName: true,
+        brandName: true,
+        designation: true,
+        workingExperienceFrom: true,
+        workingExperienceTo: true,
+        startupSubcategory: true,
+        businessType: true,
+        briefAboutOrganisation: true,
+        operatingCity: true,
+        website: true,
+        collegeName: true,
+        currentCourse: true,
+        yearSemester: true,
+        interestDomain: true,
+        startupFoundedYear: true,
+        workingDomain: true,
+        linkedinUrl: true,
+        instagramUrl: true,
+        facebookUrl: true,
+        twitterUrl: true,
+        youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
+        othersUrl: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ error: 'Failed to fetch user profile' });
+  }
 });
 
 
