@@ -371,6 +371,21 @@ router.get('/:chatId/messages', authMiddleware, async (req: AuthenticatedRequest
             fullName: true,
             avatar: true
           }
+        },
+        replyTo: {
+          select: {
+            id: true,
+            content: true,
+            senderId: true,
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            }
+          }
         }
       },
       orderBy: {
@@ -390,7 +405,8 @@ router.get('/:chatId/messages', authMiddleware, async (req: AuthenticatedRequest
 router.post('/:chatId/messages',
   authMiddleware,
   [
-    body('content').notEmpty().withMessage('Message content is required')
+    body('content').notEmpty().withMessage('Message content is required'),
+    body('replyToId').optional().isString()
   ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
@@ -401,7 +417,7 @@ router.post('/:chatId/messages',
       }
 
       const { chatId } = req.params;
-      const { content } = req.body;
+      const { content, replyToId } = req.body;
       const userId = req.user!.id;
 
       // Check if user is a participant
@@ -423,7 +439,8 @@ router.post('/:chatId/messages',
         data: {
           content,
           chatId,
-          senderId: userId
+          senderId: userId,
+          replyToId: replyToId || undefined
         },
         include: {
           sender: {
@@ -432,6 +449,21 @@ router.post('/:chatId/messages',
               username: true,
               fullName: true,
               avatar: true
+            }
+          },
+          replyTo: {
+            select: {
+              id: true,
+              content: true,
+              senderId: true,
+              sender: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true
+                }
+              }
             }
           }
         }

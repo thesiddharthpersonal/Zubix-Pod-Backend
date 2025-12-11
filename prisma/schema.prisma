@@ -370,22 +370,26 @@ enum RoomRequestStatus {
 }
 
 model Message {
-  id        String   @id @default(uuid())
-  content   String
-  roomId    String?
-  chatId    String?
-  senderId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  content    String
+  roomId     String?
+  chatId     String?
+  senderId   String
+  replyToId  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  room   Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  chat   Chat?  @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  room      Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  chat      Chat?     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo   Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReplies")
 
   @@index([roomId])
   @@index([chatId])
   @@index([senderId])
+  @@index([replyToId])
   @@index([createdAt])
   @@map("messages")
 }

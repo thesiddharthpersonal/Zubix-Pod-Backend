@@ -355,9 +355,9 @@ const setupSocketIO = (server: HttpServer): Server => {
     });
 
     // Send direct message
-    socket.on('send-dm', async (data: { chatId: string; content: string }) => {
+    socket.on('send-dm', async (data: { chatId: string; content: string; replyToId?: string }) => {
       try {
-        const { chatId, content } = data;
+        const { chatId, content, replyToId } = data;
 
         if (!content || !content.trim()) {
           socket.emit('error', { message: 'Message content is required' });
@@ -384,7 +384,8 @@ const setupSocketIO = (server: HttpServer): Server => {
           data: {
             content: content.trim(),
             chatId,
-            senderId: socket.user!.id
+            senderId: socket.user!.id,
+            replyToId: replyToId || undefined
           },
           include: {
             sender: {
@@ -393,6 +394,21 @@ const setupSocketIO = (server: HttpServer): Server => {
                 username: true,
                 fullName: true,
                 avatar: true
+              }
+            },
+            replyTo: {
+              select: {
+                id: true,
+                content: true,
+                senderId: true,
+                sender: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true
+                  }
+                }
               }
             }
           }
