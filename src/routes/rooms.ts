@@ -209,6 +209,16 @@ router.post('/',
         }
       });
 
+      // Automatically add pod owner as a room member for private rooms
+      if (privacy === 'PRIVATE') {
+        await prisma.roomMember.create({
+          data: {
+            roomId: room.id,
+            userId: req.user!.id
+          }
+        });
+      }
+
       res.status(201).json({ room });
     } catch (error) {
       console.error('Create room error:', error);
