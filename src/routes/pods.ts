@@ -112,6 +112,19 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
                 avatar: true
               }
             },
+            members: {
+              where: { isCoOwner: true },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    fullName: true,
+                    avatar: true
+                  }
+                }
+              }
+            },
             _count: {
               select: {
                 members: true,
@@ -138,6 +151,19 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
             avatar: true
           }
         },
+        members: {
+          where: { isCoOwner: true },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatar: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             members: true,
@@ -148,17 +174,31 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
     });
 
     // Combine and deduplicate pods with co-owner status
-    const memberPodsWithStatus = podMemberships.map(membership => ({
-      ...membership.pod,
-      isCoOwner: membership.isCoOwner, // Add co-owner flag to each pod
-      userRole: membership.pod.ownerId === req.user!.id ? 'owner' : (membership.isCoOwner ? 'co-owner' : 'member')
-    }));
+    const memberPodsWithStatus = podMemberships.map(membership => {
+      const coOwners = membership.pod.members.map(m => m.user);
+      const coOwnerIds = coOwners.map(co => co.id);
+      return {
+        ...membership.pod,
+        coOwners,
+        coOwnerIds,
+        members: undefined, // Remove the members object from response
+        isCoOwner: membership.isCoOwner, // Add co-owner flag to each pod
+        userRole: membership.pod.ownerId === req.user!.id ? 'owner' : (membership.isCoOwner ? 'co-owner' : 'member')
+      };
+    });
     
-    const ownedPodsWithStatus = ownedPods.map(pod => ({
-      ...pod,
-      isCoOwner: false, // Owners are not co-owners
-      userRole: 'owner'
-    }));
+    const ownedPodsWithStatus = ownedPods.map(pod => {
+      const coOwners = pod.members.map(m => m.user);
+      const coOwnerIds = coOwners.map(co => co.id);
+      return {
+        ...pod,
+        coOwners,
+        coOwnerIds,
+        members: undefined, // Remove the members object from response
+        isCoOwner: false, // Owners are not co-owners
+        userRole: 'owner'
+      };
+    });
     
     const allPods = [...ownedPodsWithStatus, ...memberPodsWithStatus];
     
