@@ -1,0 +1,43 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # Navigate to project directory
+            cd ${{ secrets.PROJECT_PATH }}
+            
+            # Pull latest changes
+            git pull origin main
+            
+            # Install dependencies
+            npm install
+            
+            # Run database migrations
+            npx prisma migrate deploy
+            
+            # Generate Prisma Client
+            npx prisma generate
+            
+            # Restart the application
+            pm2 restart zubix-backend || pm2 start npm --name "zubix-backend" -- start
+            
+            # Show status
+            pm2 status
