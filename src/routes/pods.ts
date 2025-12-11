@@ -267,18 +267,6 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
             createdAt: true
           }
         },
-        coOwners: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            profilePhoto: true,
-            email: true,
-            mobile: true,
-            role: true,
-            createdAt: true
-          }
-        },
         members: {
           include: {
             user: {
@@ -310,11 +298,16 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
       return;
     }
 
+    // Get co-owners from members where isCoOwner = true
+    const coOwners = pod.members
+      .filter(member => member.isCoOwner)
+      .map(member => member.user);
+
     // Check if user is a member
     const isMember = pod.members.some(member => member.userId === req.user!.id);
     const isOwner = pod.ownerId === req.user!.id;
 
-    res.json({ pod, isMember, isOwner });
+    res.json({ pod: { ...pod, coOwners }, isMember, isOwner });
   } catch (error) {
     console.error('Get pod error:', error);
     res.status(500).json({ error: 'Failed to fetch pod' });
