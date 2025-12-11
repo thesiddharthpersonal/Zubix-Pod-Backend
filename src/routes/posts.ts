@@ -2,7 +2,7 @@ import express, { Response } from 'express';
 import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
-import { checkPodMembership, checkPodOwnership } from '../utils/permissions.js';
+import { checkPodMembership, checkPodOwnership, checkPodAccess } from '../utils/permissions.js';
 
 const router = express.Router();
 
@@ -291,17 +291,17 @@ router.post('/',
 
       const { content, podId, mediaUrls = [] } = req.body;
 
-      // Check if user is member or owner of the pod
-      const isMember = await checkPodMembership(podId, req.user!.id);
-      const isOwner = await checkPodOwnership(podId, req.user!.id);
+      // Check if user is member, owner, or co-owner of the pod
+      const access = await checkPodAccess(podId, req.user!.id);
 
-      if (!isMember && !isOwner) {
+      if (!access.hasAccess) {
         res.status(403).json({ error: 'You must be a member of this pod to create posts' });
         return;
       }
 
-      // Determine post type based on whether user is owner
-      const postType = isOwner ? 'OWNER_UPDATE' : 'MEMBER_UPDATE';
+      // Determine post type based on whether user is owner or co-owner
+      const isOwnerOrCoOwner = access.isOwner || access.isCoOwner;
+      const postType = isOwnerOrCoOwner ? 'OWNER_UPDATE' : 'MEMBER_UPDATE';
 
       const post = await prisma.post.create({
         data: {
@@ -310,7 +310,7 @@ router.post('/',
           type: postType,
           podId,
           authorId: req.user!.id,
-          isOwnerPost: isOwner
+          isOwnerPost: isOwnerOrCoOwner
         },
         include: {
           author: {
