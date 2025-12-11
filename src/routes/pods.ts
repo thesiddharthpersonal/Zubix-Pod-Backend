@@ -672,8 +672,13 @@ router.get('/:podId/members', authMiddleware, async (req: AuthenticatedRequest, 
       }
     });
 
-    const memberUsers = members.map(m => m.user);
-    res.json({ members: memberUsers });
+    const memberData = members.map(m => ({
+      ...m.user,
+      isCoOwner: m.isCoOwner,
+      joinedAt: m.joinedAt
+    }));
+    
+    res.json({ members: memberData });
   } catch (error) {
     console.error('Get pod members error:', error);
     res.status(500).json({ error: 'Failed to fetch members' });
@@ -882,6 +887,132 @@ router.post('/:podId/approve', authMiddleware, isPodOwner, async (req: Authentic
   } catch (error) {
     console.error('Approve pod error:', error);
     res.status(500).json({ error: 'Failed to approve pod' });
+  }
+});
+
+// Promote member to co-owner (owner only)
+router.post('/:podId/members/:userId/promote', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId, userId } = req.params;
+
+    // Check if requester is the pod owner
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (pod.ownerId !== req.user!.id) {
+      res.status(403).json({ error: 'Only the pod owner can promote members to co-owner' });
+      return;
+    }
+
+    // Check if user is a member
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: { podId, userId }
+      }
+    });
+
+    if (!member) {
+      res.status(404).json({ error: 'User is not a member of this pod' });
+      return;
+    }
+
+    if (member.isCoOwner) {
+      res.status(400).json({ error: 'User is already a co-owner' });
+      return;
+    }
+
+    // Promote to co-owner
+    const updatedMember = await prisma.podMember.update({
+      where: {
+        podId_userId: { podId, userId }
+      },
+      data: {
+        isCoOwner: true
+      },
+      include: {
+        user: {
+          select: userSelectMinimal
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Member promoted to co-owner successfully',
+      member: updatedMember 
+    });
+  } catch (error) {
+    console.error('Promote to co-owner error:', error);
+    res.status(500).json({ error: 'Failed to promote member to co-owner' });
+  }
+});
+
+// Demote co-owner to regular member (owner only)
+router.post('/:podId/members/:userId/demote', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId, userId } = req.params;
+
+    // Check if requester is the pod owner
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (pod.ownerId !== req.user!.id) {
+      res.status(403).json({ error: 'Only the pod owner can demote co-owners' });
+      return;
+    }
+
+    // Check if user is a co-owner
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: { podId, userId }
+      }
+    });
+
+    if (!member) {
+      res.status(404).json({ error: 'User is not a member of this pod' });
+      return;
+    }
+
+    if (!member.isCoOwner) {
+      res.status(400).json({ error: 'User is not a co-owner' });
+      return;
+    }
+
+    // Demote to regular member
+    const updatedMember = await prisma.podMember.update({
+      where: {
+        podId_userId: { podId, userId }
+      },
+      data: {
+        isCoOwner: false
+      },
+      include: {
+        user: {
+          select: userSelectMinimal
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Co-owner demoted to regular member successfully',
+      member: updatedMember 
+    });
+  } catch (error) {
+    console.error('Demote co-owner error:', error);
+    res.status(500).json({ error: 'Failed to demote co-owner' });
   }
 });
 

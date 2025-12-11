@@ -232,6 +232,7 @@ model PodMember {
   id        String   @id @default(uuid())
   podId     String
   userId    String
+  isCoOwner Boolean  @default(false)
   joinedAt  DateTime @default(now())
   updatedAt DateTime @updatedAt
 

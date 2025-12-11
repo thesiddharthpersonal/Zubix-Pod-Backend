@@ -76,3 +76,66 @@ export const isPodOwner = (
   }
   next();
 };
+
+/**
+ * Middleware to check if user is owner or co-owner of a specific pod
+ * Requires podId in req.params
+ */
+export const isPodOwnerOrCoOwner = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { podId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    if (!podId) {
+      res.status(400).json({ error: 'Pod ID is required' });
+      return;
+    }
+
+    // Check if user is pod owner
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    // If user is the owner, allow
+    if (pod.ownerId === userId) {
+      next();
+      return;
+    }
+
+    // Check if user is a co-owner
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId,
+          userId
+        }
+      },
+      select: { isCoOwner: true }
+    });
+
+    if (member?.isCoOwner) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ error: 'Only pod owner or co-owners can perform this action' });
+  } catch (error) {
+    console.error('isPodOwnerOrCoOwner middleware error:', error);
+    res.status(500).json({ error: 'Authorization check failed' });
+  }
+};

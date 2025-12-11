@@ -30,16 +30,16 @@ export async function checkPodOwnership(podId: string, userId: string): Promise<
  * Check if a user is a co-owner of a pod
  */
 export async function checkPodCoOwnership(podId: string, userId: string): Promise<boolean> {
-  const pod = await prisma.pod.findUnique({
-    where: { id: podId },
-    include: {
-      coOwners: {
-        where: { id: userId },
-        select: { id: true }
+  const member = await prisma.podMember.findUnique({
+    where: {
+      podId_userId: {
+        podId,
+        userId
       }
-    }
+    },
+    select: { isCoOwner: true }
   });
-  return pod ? pod.coOwners.length > 0 : false;
+  return member ? member.isCoOwner : false;
 }
 
 /**
@@ -54,12 +54,7 @@ export async function checkPodAccess(podId: string, userId: string): Promise<{
   const [pod, membership] = await Promise.all([
     prisma.pod.findUnique({
       where: { id: podId },
-      include: {
-        coOwners: {
-          where: { id: userId },
-          select: { id: true }
-        }
-      }
+      select: { ownerId: true }
     }),
     prisma.podMember.findUnique({
       where: {
@@ -67,7 +62,8 @@ export async function checkPodAccess(podId: string, userId: string): Promise<{
           podId,
           userId
         }
-      }
+      },
+      select: { isCoOwner: true }
     })
   ]);
 
@@ -76,7 +72,7 @@ export async function checkPodAccess(podId: string, userId: string): Promise<{
   }
 
   const isOwner = pod.ownerId === userId;
-  const isCoOwner = pod.coOwners.length > 0;
+  const isCoOwner = membership?.isCoOwner || false;
   const isMember = !!membership;
   const hasAccess = isOwner || isCoOwner || isMember;
 
