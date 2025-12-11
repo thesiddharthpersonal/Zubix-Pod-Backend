@@ -87,7 +87,8 @@ export const isPodOwnerOrCoOwner = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { podId } = req.params;
+    // Check for podId in params first, then in body
+    const podId = req.params.podId || req.body.podId;
     const userId = req.user?.id;
 
     if (!userId) {
