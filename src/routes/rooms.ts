@@ -488,6 +488,81 @@ router.post('/:roomId/members',
   }
 );
 
+// Get all room members (pod owner/co-owner only)
+router.get('/:roomId/members', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    console.log('GET /rooms/:roomId/members - Room ID:', roomId);
+    console.log('User:', req.user?.id, req.user?.username);
+
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      include: {
+        pod: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!room) {
+      console.log('Room not found:', roomId);
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    console.log('Room found:', room.name, 'Pod owner:', room.pod.ownerId);
+
+    const members = await prisma.roomMember.findMany({
+      where: { roomId },
+      orderBy: {
+        joinedAt: 'asc'
+      }
+    });
+
+    console.log('Found room members:', members.length);
+
+    // Fetch user details for each member
+    const userIds = members.map(m => m.userId);
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: userIds }
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        email: true,
+        profilePhoto: true,
+        role: true
+      }
+    });
+
+    // Create a map of users for quick lookup
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    // Combine member data with user data
+    const formattedMembers = members.map(member => {
+      const user = userMap.get(member.userId);
+      return {
+        id: user?.id || member.userId,
+        username: user?.username || 'Unknown',
+        fullName: user?.fullName || 'Unknown User',
+        email: user?.email,
+        profilePhoto: user?.profilePhoto,
+        role: user?.role || 'MEMBER',
+        joinedAt: member.joinedAt
+      };
+    });
+
+    console.log('Returning members:', formattedMembers.length, 'members');
+    res.json({ members: formattedMembers, totalCount: members.length });
+  } catch (error) {
+    console.error('Get room members error:', error);
+    res.status(500).json({ error: 'Failed to fetch members' });
+  }
+});
+
 // Remove member from room (owner only)
 router.delete('/:roomId/members/:userId', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {

@@ -64,6 +64,11 @@ enum CallBookingStatus {
   REJECTED
 }
 
+enum JobType {
+  JOB
+  INTERNSHIP
+}
+
 enum RoomType {
   GENERAL
   QA
@@ -141,6 +146,7 @@ model User {
   answers                Answer[]
   roomJoinRequests       RoomJoinRequest[]     @relation("UserRoomJoinRequests")
   startupIdeas           StartupIdea[]
+  jobApplications        JobApplication[]
 
   @@map("users")
 }
@@ -634,4 +640,45 @@ model StartupIdea {
   @@index([userId])
   @@index([createdAt])
   @@map("startup_ideas")
+}
+
+model JobApplication {
+  id            String   @id @default(uuid())
+  userId        String
+  candidateName String
+  type          JobType
+  domain        String
+  brief         String
+  resumeUrl     String
+  contactEmail  String?
+  contactPhone  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([domain])
+  @@index([createdAt])
+  @@map("job_applications")
+}
+
+model IdolPitchDeck {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  companyName String
+  pdfUrl      String
+  thumbnailUrl String?
+  uploadedBy  String?  // Admin user ID who uploaded
+  isActive    Boolean  @default(true)
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("idol_pitch_decks")
 }

@@ -19,6 +19,8 @@ import callBookingsRoutes from './routes/callBookings.js';
 import notificationsRoutes from './routes/notifications.js';
 import uploadRoutes from './routes/upload.js';
 import startupIdeasRoutes from './routes/startupIdeas.js';
+import jobsRoutes from './routes/jobs.js';
+import idolPitchDecksRoutes from './routes/idolPitchDecks.js';
 
 const app: Express = express();
 const server: http.Server = http.createServer(app);
@@ -85,6 +87,8 @@ app.use('/api/call-bookings', callBookingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/startup-ideas', startupIdeasRoutes);
+app.use('/api/jobs', jobsRoutes);
+app.use('/api/idol-pitch-decks', idolPitchDecksRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
