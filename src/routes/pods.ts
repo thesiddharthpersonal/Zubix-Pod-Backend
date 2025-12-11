@@ -98,6 +98,7 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
       return;
     }
 
+    // Get pods where user is a member
     const podMemberships = await prisma.podMember.findMany({
       where: { userId: req.user!.id },
       include: {
@@ -125,9 +126,37 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
       }
     });
 
-    const pods = podMemberships.map(membership => membership.pod);
+    // Get pods where user is the owner
+    const ownedPods = await prisma.pod.findMany({
+      where: { ownerId: req.user!.id },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true
+          }
+        },
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
 
-    res.json({ pods });
+    // Combine and deduplicate pods
+    const memberPods = podMemberships.map(membership => membership.pod);
+    const allPods = [...ownedPods, ...memberPods];
+    
+    // Remove duplicates by pod ID
+    const uniquePods = Array.from(
+      new Map(allPods.map(pod => [pod.id, pod])).values()
+    );
+
+    res.json({ pods: uniquePods });
   } catch (error) {
     console.error('Get joined pods error:', error);
     res.status(500).json({ error: 'Failed to fetch joined pods' });
@@ -358,6 +387,15 @@ router.post('/',
               avatar: true
             }
           }
+        }
+      });
+
+      // Automatically add pod owner as a member
+      await prisma.podMember.create({
+        data: {
+          podId: pod.id,
+          userId: req.user!.id,
+          isCoOwner: false
         }
       });
 
