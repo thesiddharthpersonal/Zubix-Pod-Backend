@@ -620,9 +620,9 @@ router.put('/:podId',
         for (const coOwner of newCoOwners) {
           await prisma.podMember.upsert({
             where: {
-              userId_podId: {
-                userId: coOwner.id,
-                podId
+              podId_userId: {
+                podId,
+                userId: coOwner.id
               }
             },
             update: { isCoOwner: true },
