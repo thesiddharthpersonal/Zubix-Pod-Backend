@@ -140,3 +140,71 @@ export const isPodOwnerOrCoOwner = async (
     res.status(500).json({ error: 'Authorization check failed' });
   }
 };
+
+/**
+ * Middleware to check if user is pod owner or co-owner via roomId
+ * Use this for endpoints that have roomId in params instead of podId
+ */
+export const isPodOwnerOrCoOwnerViaRoom = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'User not authenticated' });
+      return;
+    }
+
+    if (!roomId) {
+      res.status(400).json({ error: 'Room ID is required' });
+      return;
+    }
+
+    // Get room to find podId
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { 
+        podId: true,
+        pod: {
+          select: { ownerId: true }
+        }
+      }
+    });
+
+    if (!room) {
+      res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    // If user is the pod owner, allow
+    if (room.pod.ownerId === userId) {
+      next();
+      return;
+    }
+
+    // Check if user is a co-owner
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: room.podId,
+          userId
+        }
+      },
+      select: { isCoOwner: true }
+    });
+
+    if (member?.isCoOwner) {
+      next();
+      return;
+    }
+
+    res.status(403).json({ error: 'Only pod owner or co-owners can perform this action' });
+  } catch (error) {
+    console.error('isPodOwnerOrCoOwnerViaRoom middleware error:', error);
+    res.status(500).json({ error: 'Authorization check failed' });
+  }
+};

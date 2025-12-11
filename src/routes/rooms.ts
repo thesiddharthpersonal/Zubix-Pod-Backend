@@ -1,5 +1,5 @@
 import express, { Response } from 'express';
-import { authMiddleware, isPodOwner, isPodOwnerOrCoOwner, AuthenticatedRequest } from '../middleware/auth.js';
+import { authMiddleware, isPodOwner, isPodOwnerOrCoOwner, isPodOwnerOrCoOwnerViaRoom, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
 
@@ -220,7 +220,7 @@ router.post('/',
 // Update a room (pod owner only)
 router.put('/:roomId',
   authMiddleware,
-  isPodOwnerOrCoOwner,
+  isPodOwnerOrCoOwnerViaRoom,
   [
     body('name').optional().isLength({ min: 3 }),
     body('description').optional().isString(),
@@ -280,7 +280,7 @@ router.put('/:roomId',
 );
 
 // Delete a room (pod owner only)
-router.delete('/:roomId', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:roomId', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
 
@@ -414,7 +414,7 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
 // Add member to a private room (owner only)
 router.post('/:roomId/members',
   authMiddleware,
-  isPodOwnerOrCoOwner,
+  isPodOwnerOrCoOwnerViaRoom,
   [
     body('userId').notEmpty().withMessage('User ID is required')
   ],
@@ -474,7 +474,7 @@ router.post('/:roomId/members',
 );
 
 // Remove member from room (owner only)
-router.delete('/:roomId/members/:userId', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:roomId/members/:userId', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId, userId } = req.params;
 
@@ -613,7 +613,7 @@ router.post('/:roomId/join-request', authMiddleware, async (req: AuthenticatedRe
 });
 
 // Get pending join requests for a room (pod owner only)
-router.get('/:roomId/join-requests', authMiddleware, isPodOwnerOrCoOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:roomId/join-requests', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { roomId } = req.params;
 
@@ -665,7 +665,7 @@ router.get('/:roomId/join-requests', authMiddleware, isPodOwnerOrCoOwner, async 
 // Accept or reject a join request (pod owner only)
 router.put('/:roomId/join-requests/:requestId',
   authMiddleware,
-  isPodOwnerOrCoOwner,
+  isPodOwnerOrCoOwnerViaRoom,
   [
     body('status').isIn(['ACCEPTED', 'REJECTED']).withMessage('Status must be ACCEPTED or REJECTED')
   ],
