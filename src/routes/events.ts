@@ -270,9 +270,9 @@ router.post('/',
       const isOwner = pod.ownerId === req.user!.id;
       const membership = await prisma.podMember.findUnique({
         where: {
-          userId_podId: {
-            userId: req.user!.id,
-            podId: podId
+          podId_userId: {
+            podId: podId,
+            userId: req.user!.id
           }
         }
       });
@@ -365,9 +365,9 @@ router.put('/:eventId',
       const isOwner = event.pod.ownerId === req.user!.id;
       const membership = await prisma.podMember.findUnique({
         where: {
-          userId_podId: {
-            userId: req.user!.id,
-            podId: event.podId
+          podId_userId: {
+            podId: event.podId,
+            userId: req.user!.id
           }
         }
       });
@@ -440,9 +440,9 @@ router.delete('/:eventId', authMiddleware, async (req: AuthenticatedRequest, res
     const isOwner = event.pod.ownerId === req.user!.id;
     const membership = await prisma.podMember.findUnique({
       where: {
-        userId_podId: {
-          userId: req.user!.id,
-          podId: event.podId
+        podId_userId: {
+          podId: event.podId,
+          userId: req.user!.id
         }
       }
     });
