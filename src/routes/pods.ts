@@ -483,7 +483,15 @@ router.post('/',
       res.status(201).json({ pod });
     } catch (error) {
       console.error('Create pod error:', error);
-      res.status(500).json({ error: 'Failed to create pod' });
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      res.status(500).json({ 
+        error: 'Failed to create pod',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 );
