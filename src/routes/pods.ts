@@ -460,7 +460,6 @@ router.post('/',
 // Update pod
 router.put('/:podId',
   authMiddleware,
-  isPodOwner,
   [
     body('name').optional().isLength({ min: 3 }),
     body('description').optional().isString(),
@@ -475,11 +474,18 @@ router.put('/:podId',
       }
 
       const { podId } = req.params;
-      const { name, description, isPublic, avatar, coverImage } = req.body;
 
-      // Check ownership
+      // Check ownership or co-ownership
       const pod = await prisma.pod.findUnique({
-        where: { id: podId }
+        where: { id: podId },
+        include: {
+          members: {
+            where: {
+              userId: req.user!.id,
+              isCoOwner: true
+            }
+          }
+        }
       });
 
       if (!pod) {
@@ -487,20 +493,152 @@ router.put('/:podId',
         return;
       }
 
-      if (pod.ownerId !== req.user!.id) {
-        res.status(403).json({ error: 'You are not the owner of this pod' });
+      // Check if user is owner or co-owner
+      const isOwner = pod.ownerId === req.user!.id;
+      const isCoOwner = pod.members.length > 0;
+
+      if (!isOwner && !isCoOwner) {
+        res.status(403).json({ error: 'You do not have permission to edit this pod' });
         return;
+      }
+
+      const {
+        name,
+        description,
+        isPublic,
+        avatar,
+        coverImage,
+        logo,
+        organisationName,
+        organisationType,
+        organisationEmail,
+        operatingCity,
+        website,
+        focusAreas,
+        totalInvestmentSize,
+        numberOfInvestments,
+        briefAboutOrganisation,
+        socialLinks,
+        coOwnerUsernames,
+        // Advanced fields
+        supportedDomains,
+        supportedStages,
+        communityType,
+        investmentAreas,
+        investmentStages,
+        chequeSize,
+        investmentThesis,
+        serviceType,
+        programmeDuration,
+        numberOfStartups,
+        focusedSectors,
+        benefits,
+        innovationFocusArea,
+        collaborationModel,
+        fundingGrantSupport,
+        schemeName,
+        programmeObjectives,
+        benefitsOffered,
+        eligibilityCriteria,
+        eventsConducted
+      } = req.body;
+
+      // Prepare update data
+      const updateData: any = {};
+      
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (isPublic !== undefined) updateData.isPublic = isPublic;
+      if (avatar !== undefined) updateData.avatar = avatar;
+      if (coverImage !== undefined) updateData.coverImage = coverImage;
+      if (logo !== undefined) updateData.logo = logo;
+      if (organisationName !== undefined) updateData.organisationName = organisationName;
+      if (organisationType !== undefined) updateData.organisationType = organisationType;
+      if (organisationEmail !== undefined) updateData.organisationEmail = organisationEmail;
+      if (operatingCity !== undefined) updateData.operatingCity = operatingCity;
+      if (website !== undefined) updateData.website = website;
+      if (focusAreas !== undefined) updateData.focusAreas = focusAreas;
+      if (totalInvestmentSize !== undefined) updateData.totalInvestmentSize = totalInvestmentSize;
+      if (numberOfInvestments !== undefined) updateData.numberOfInvestments = numberOfInvestments;
+      if (briefAboutOrganisation !== undefined) updateData.briefAboutOrganisation = briefAboutOrganisation;
+      
+      // Social links
+      if (socialLinks !== undefined) {
+        if (socialLinks.linkedin !== undefined) updateData.linkedinUrl = socialLinks.linkedin;
+        if (socialLinks.instagram !== undefined) updateData.instagramUrl = socialLinks.instagram;
+        if (socialLinks.facebook !== undefined) updateData.facebookUrl = socialLinks.facebook;
+        if (socialLinks.twitter !== undefined) updateData.twitterUrl = socialLinks.twitter;
+        if (socialLinks.youtube !== undefined) updateData.youtubeUrl = socialLinks.youtube;
+        if (socialLinks.github !== undefined) updateData.githubUrl = socialLinks.github;
+        if (socialLinks.portfolio !== undefined) updateData.portfolioUrl = socialLinks.portfolio;
+        if (socialLinks.others !== undefined) updateData.othersUrl = socialLinks.others;
+      }
+
+      // Advanced fields
+      if (supportedDomains !== undefined) updateData.supportedDomains = supportedDomains;
+      if (supportedStages !== undefined) updateData.supportedStages = supportedStages;
+      if (communityType !== undefined) updateData.communityType = communityType;
+      if (investmentAreas !== undefined) updateData.investmentAreas = investmentAreas;
+      if (investmentStages !== undefined) updateData.investmentStages = investmentStages;
+      if (chequeSize !== undefined) updateData.chequeSize = chequeSize;
+      if (investmentThesis !== undefined) updateData.investmentThesis = investmentThesis;
+      if (serviceType !== undefined) updateData.serviceType = serviceType;
+      if (programmeDuration !== undefined) updateData.programmeDuration = programmeDuration;
+      if (numberOfStartups !== undefined) updateData.numberOfStartups = numberOfStartups;
+      if (focusedSectors !== undefined) updateData.focusedSectors = focusedSectors;
+      if (benefits !== undefined) updateData.benefits = benefits;
+      if (innovationFocusArea !== undefined) updateData.innovationFocusArea = innovationFocusArea;
+      if (collaborationModel !== undefined) updateData.collaborationModel = collaborationModel;
+      if (fundingGrantSupport !== undefined) updateData.fundingGrantSupport = fundingGrantSupport;
+      if (schemeName !== undefined) updateData.schemeName = schemeName;
+      if (programmeObjectives !== undefined) updateData.programmeObjectives = programmeObjectives;
+      if (benefitsOffered !== undefined) updateData.benefitsOffered = benefitsOffered;
+      if (eligibilityCriteria !== undefined) updateData.eligibilityCriteria = eligibilityCriteria;
+      if (eventsConducted !== undefined) updateData.eventsConducted = eventsConducted;
+
+      // Handle co-owners update (only owner can modify co-owners)
+      if (coOwnerUsernames !== undefined && isOwner) {
+        // Get current co-owners
+        const currentCoOwners = await prisma.podMember.findMany({
+          where: { podId, isCoOwner: true }
+        });
+
+        // Find users by username
+        const newCoOwners = await prisma.user.findMany({
+          where: { username: { in: coOwnerUsernames } }
+        });
+
+        // Remove old co-owners
+        await prisma.podMember.deleteMany({
+          where: {
+            podId,
+            isCoOwner: true,
+            userId: { notIn: newCoOwners.map(u => u.id) }
+          }
+        });
+
+        // Add new co-owners
+        for (const coOwner of newCoOwners) {
+          await prisma.podMember.upsert({
+            where: {
+              userId_podId: {
+                userId: coOwner.id,
+                podId
+              }
+            },
+            update: { isCoOwner: true },
+            create: {
+              userId: coOwner.id,
+              podId,
+              isCoOwner: true
+            }
+          });
+        }
       }
 
       const updatedPod = await prisma.pod.update({
         where: { id: podId },
-        data: {
-          ...(name && { name }),
-          ...(description !== undefined && { description }),
-          ...(isPublic !== undefined && { isPublic }),
-          ...(avatar !== undefined && { avatar }),
-          ...(coverImage !== undefined && { coverImage })
-        },
+        data: updateData,
         include: {
           owner: {
             select: {
@@ -509,11 +647,51 @@ router.put('/:podId',
               fullName: true,
               avatar: true
             }
+          },
+          members: {
+            where: { isCoOwner: true },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  fullName: true,
+                  avatar: true
+                }
+              }
+            }
+          },
+          _count: {
+            select: {
+              members: true,
+              posts: true
+            }
           }
         }
       });
 
-      res.json({ pod: updatedPod });
+      // Format response to match frontend expectations
+      const formattedPod = {
+        ...updatedPod,
+        socialLinks: {
+          linkedin: updatedPod.linkedinUrl,
+          instagram: updatedPod.instagramUrl,
+          facebook: updatedPod.facebookUrl,
+          twitter: updatedPod.twitterUrl,
+          youtube: updatedPod.youtubeUrl,
+          github: updatedPod.githubUrl,
+          portfolio: updatedPod.portfolioUrl,
+          others: updatedPod.othersUrl
+        },
+        coOwners: updatedPod.members.map(m => ({
+          id: m.user.id,
+          username: m.user.username,
+          fullName: m.user.fullName,
+          avatar: m.user.avatar
+        }))
+      };
+
+      res.json({ pod: formattedPod });
     } catch (error) {
       console.error('Update pod error:', error);
       res.status(500).json({ error: 'Failed to update pod' });
