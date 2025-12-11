@@ -235,7 +235,7 @@ router.get('/:eventId', authMiddleware, async (req: AuthenticatedRequest, res: R
 // Create an event (pod owner only)
 router.post('/',
   authMiddleware,
-  isPodOwner,
+  // Note: Pod ownership/co-ownership check is done inside the handler
   [
     body('name').isLength({ min: 3 }).withMessage('Event name must be at least 3 characters'),
     body('title').optional().isString(),
@@ -266,8 +266,20 @@ router.post('/',
         return res.status(404).json({ error: 'Pod not found' });
       }
 
-      if (pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'You are not the owner of this pod' });
+      // Check if user is owner or co-owner of the pod
+      const isOwner = pod.ownerId === req.user!.id;
+      const membership = await prisma.podMember.findUnique({
+        where: {
+          userId_podId: {
+            userId: req.user!.id,
+            podId: podId
+          }
+        }
+      });
+      const isCoOwner = membership?.isCoOwner || false;
+
+      if (!isOwner && !isCoOwner) {
+        return res.status(403).json({ error: 'You must be the owner or co-owner of this pod to create events' });
       }
 
       const event = await prisma.event.create({
@@ -311,7 +323,7 @@ router.post('/',
 // Update an event (pod owner only)
 router.put('/:eventId',
   authMiddleware,
-  isPodOwner,
+  // Note: Pod ownership/co-ownership check is done inside the handler
   [
     body('title').optional().isLength({ min: 3 }),
     body('name').optional().isString(),
@@ -349,8 +361,20 @@ router.put('/:eventId',
         return res.status(404).json({ error: 'Event not found' });
       }
 
-      if (event.pod.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: 'You are not the owner of this pod' });
+      // Check if user is owner or co-owner of the pod
+      const isOwner = event.pod.ownerId === req.user!.id;
+      const membership = await prisma.podMember.findUnique({
+        where: {
+          userId_podId: {
+            userId: req.user!.id,
+            podId: event.podId
+          }
+        }
+      });
+      const isCoOwner = membership?.isCoOwner || false;
+
+      if (!isOwner && !isCoOwner) {
+        return res.status(403).json({ error: 'You must be the owner or co-owner of this pod to update events' });
       }
 
       const updateData: any = {};
@@ -392,7 +416,7 @@ router.put('/:eventId',
 );
 
 // Delete an event (pod owner only)
-router.delete('/:eventId', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:eventId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { eventId } = req.params;
 
@@ -412,8 +436,20 @@ router.delete('/:eventId', authMiddleware, isPodOwner, async (req: Authenticated
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    if (event.pod.ownerId !== req.user!.id) {
-      return res.status(403).json({ error: 'You are not the owner of this pod' });
+    // Check if user is owner or co-owner of the pod
+    const isOwner = event.pod.ownerId === req.user!.id;
+    const membership = await prisma.podMember.findUnique({
+      where: {
+        userId_podId: {
+          userId: req.user!.id,
+          podId: event.podId
+        }
+      }
+    });
+    const isCoOwner = membership?.isCoOwner || false;
+
+    if (!isOwner && !isCoOwner) {
+      return res.status(403).json({ error: 'You must be the owner or co-owner of this pod to delete events' });
     }
 
     await prisma.event.delete({
