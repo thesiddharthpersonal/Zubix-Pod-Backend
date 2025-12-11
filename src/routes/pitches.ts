@@ -14,12 +14,7 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
     const { status } = req.query;
 
     const pod = await prisma.pod.findUnique({
-      where: { id: podId },
-      include: {
-        coOwners: {
-          select: { id: true }
-        }
-      }
+      where: { id: podId }
     });
 
     if (!pod) {
@@ -28,7 +23,17 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
     }
 
     const isOwner = pod.ownerId === req.user!.id;
-    const isCoOwner = pod.coOwners.some(co => co.id === req.user!.id);
+    
+    // Check if user is a co-owner
+    const membership = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: {
+          podId: podId,
+          userId: req.user!.id
+        }
+      }
+    });
+    const isCoOwner = membership?.isCoOwner || false;
 
     const whereClause: any = { podId };
 
@@ -399,10 +404,9 @@ router.patch('/:pitchId/status',
         where: { id: pitchId },
         include: {
           pod: {
-            include: {
-              coOwners: {
-                select: { id: true }
-              }
+            select: {
+              id: true,
+              ownerId: true
             }
           }
         }
@@ -413,14 +417,20 @@ router.patch('/:pitchId/status',
         return;
       }
 
-      console.log('Pitch pod owner:', pitch.pod.ownerId);
-      console.log('Current user:', req.user!.id);
-      console.log('Co-owners:', pitch.pod.coOwners);
-
       const isOwner = pitch.pod.ownerId === req.user!.id;
-      const isCoOwner = pitch.pod.coOwners.some(co => co.id === req.user!.id);
-
-      console.log('Is owner:', isOwner, 'Is co-owner:', isCoOwner);
+      
+      // Check if user is a co-owner via PodMember table
+      const coOwnerMembership = await prisma.podMember.findUnique({
+        where: {
+          podId_userId: {
+            podId: pitch.podId,
+            userId: req.user!.id
+          }
+        },
+        select: { isCoOwner: true }
+      });
+      
+      const isCoOwner = coOwnerMembership?.isCoOwner || false;
 
       if (!isOwner && !isCoOwner) {
         res.status(403).json({ error: 'Only pod owners/co-owners can update pitch status' });
@@ -478,10 +488,9 @@ router.post('/:pitchId/replies',
         where: { id: pitchId },
         include: {
           pod: {
-            include: {
-              coOwners: {
-                select: { id: true }
-              }
+            select: {
+              id: true,
+              ownerId: true
             }
           }
         }
@@ -493,27 +502,23 @@ router.post('/:pitchId/replies',
       }
 
       const isOwner = pitch.pod.ownerId === req.user!.id;
-      const isCoOwner = pitch.pod.coOwners.some(co => co.id === req.user!.id);
-
-      console.log('Reply attempt:', {
-        userId: req.user!.id,
-        pitchId,
-        podOwnerId: pitch.pod.ownerId,
-        coOwners: pitch.pod.coOwners.map(co => co.id),
-        isOwner,
-        isCoOwner
+      
+      // Check if user is a co-owner via PodMember table
+      const coOwnerMembership = await prisma.podMember.findUnique({
+        where: {
+          podId_userId: {
+            podId: pitch.podId,
+            userId: req.user!.id
+          }
+        },
+        select: { isCoOwner: true }
       });
+      
+      const isCoOwner = coOwnerMembership?.isCoOwner || false;
 
       if (!isOwner && !isCoOwner) {
-        console.log('Permission denied: User is not owner or co-owner');
         res.status(403).json({ 
-          error: 'Only pod owners/co-owners can reply to pitches',
-          details: {
-            isOwner,
-            isCoOwner,
-            userId: req.user!.id,
-            podOwnerId: pitch.pod.ownerId
-          }
+          error: 'Only pod owners/co-owners can reply to pitches'
         });
         return;
       }
