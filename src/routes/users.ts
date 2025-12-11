@@ -215,6 +215,7 @@ router.put('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
       if (updateData.socialLinks.github !== undefined) filteredUpdateData.githubUrl = updateData.socialLinks.github;
       if (updateData.socialLinks.portfolio !== undefined) filteredUpdateData.portfolioUrl = updateData.socialLinks.portfolio;
       if (updateData.socialLinks.others !== undefined) filteredUpdateData.othersUrl = updateData.socialLinks.others;
+      if (updateData.socialLinks.additionalLinks !== undefined) filteredUpdateData.additionalLinks = updateData.socialLinks.additionalLinks;
     }
 
     const updatedUser = await prisma.user.update({
