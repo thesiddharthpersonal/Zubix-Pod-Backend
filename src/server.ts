@@ -18,6 +18,7 @@ import messageRequestsRoutes from './routes/messageRequests.js';
 import callBookingsRoutes from './routes/callBookings.js';
 import notificationsRoutes from './routes/notifications.js';
 import uploadRoutes from './routes/upload.js';
+import startupIdeasRoutes from './routes/startupIdeas.js';
 
 const app: Express = express();
 const server: http.Server = http.createServer(app);
@@ -83,6 +84,7 @@ app.use('/api/message-requests', messageRequestsRoutes);
 app.use('/api/call-bookings', callBookingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/startup-ideas', startupIdeasRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
