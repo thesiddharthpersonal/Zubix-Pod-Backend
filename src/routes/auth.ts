@@ -40,8 +40,27 @@ const signupController = async (req: AuthenticatedRequest, res: Response): Promi
       return;
     }
 
-    // Generate username from email
-    const username = email.split('@')[0] + Math.random().toString(36).substring(7);
+    // Generate unique username from email
+    let username = '';
+    let isUnique = false;
+    const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''); // Remove special characters
+    
+    while (!isUnique) {
+      const randomDigits = Math.floor(Math.random() * 9000) + 1000; // Generates 1000-9999 (4 digits)
+      const digits = Math.random() > 0.5 
+        ? randomDigits.toString().substring(0, 2) // 2 digits
+        : randomDigits.toString(); // 4 digits
+      username = baseUsername + digits;
+      
+      // Check if username already exists
+      const existingUsername = await prisma.user.findUnique({
+        where: { username }
+      });
+      
+      if (!existingUsername) {
+        isUnique = true;
+      }
+    }
 
     // Hash password
     const hashedPassword = await hashPassword(password);
