@@ -20,6 +20,7 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const pods = await prisma.pod.findMany({
       where: {
         isPublic: true,
+        isApproved: true, // Only search approved pods
         name: {
           contains: q as string,
           mode: 'insensitive'
@@ -57,7 +58,10 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
 router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const pods = await prisma.pod.findMany({
-      where: { isPublic: true },
+      where: { 
+        isPublic: true,
+        isApproved: true // Only show approved pods
+      },
       include: {
         owner: {
           select: {
@@ -139,9 +143,12 @@ router.get('/joined', authMiddleware, async (req: AuthenticatedRequest, res: Res
       }
     });
 
-    // Get pods where user is the owner
+    // Get pods where user is the owner (only approved pods)
     const ownedPods = await prisma.pod.findMany({
-      where: { ownerId: req.user!.id },
+      where: { 
+        ownerId: req.user!.id,
+        isApproved: true // Only show approved pods
+      },
       include: {
         owner: {
           select: {
@@ -252,8 +259,14 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
   try {
     const { podId } = req.params;
 
-    const pod = await prisma.pod.findUnique({
-      where: { id: podId },
+    const pod = await prisma.pod.findFirst({
+      where: { 
+        id: podId,
+        OR: [
+          { isApproved: true }, // Approved pods visible to all
+          { ownerId: req.user!.id } // Owners can see their own unapproved pods
+        ]
+      },
       include: {
         owner: {
           select: {
