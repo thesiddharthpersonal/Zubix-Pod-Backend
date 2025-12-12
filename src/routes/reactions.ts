@@ -3,6 +3,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
 import { ApiResponse } from '../utils/responses.js';
+import { createAndEmitNotification } from '../utils/notifications.js';
 
 const router = express.Router();
 
@@ -103,6 +104,17 @@ router.post('/',
           }
         }
       });
+
+      // Create notification for post author (if not reacting to own post)
+      if (post.authorId !== req.user!.id) {
+        await createAndEmitNotification({
+          userId: post.authorId,
+          type: 'post_like',
+          title: 'New Reaction',
+          message: `${req.user!.fullName} reacted to your post`,
+          linkedId: postId
+        });
+      }
 
       res.status(201).json({ reaction });
     } catch (error) {

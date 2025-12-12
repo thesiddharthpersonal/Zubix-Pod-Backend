@@ -3,6 +3,7 @@ import { authMiddleware, isPodOwner, AuthenticatedRequest } from '../middleware/
 import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
 import { checkPodMembership, checkPodOwnership, checkPodAccess } from '../utils/permissions.js';
+import { createAndEmitNotification } from '../utils/notifications.js';
 
 const router = express.Router();
 
@@ -531,7 +532,7 @@ router.post('/:postId/comments',
 
       const post = await prisma.post.findUnique({
         where: { id: postId },
-        select: { podId: true }
+        select: { podId: true, authorId: true }
       });
 
       if (!post) {
@@ -569,6 +570,17 @@ router.post('/:postId/comments',
           }
         }
       });
+
+      // Create notification for post author (if not commenting on own post)
+      if (post.authorId !== req.user!.id) {
+        await createAndEmitNotification({
+          userId: post.authorId,
+          type: 'comment',
+          title: 'New Comment',
+          message: `${req.user!.fullName} commented on your post`,
+          linkedId: postId
+        });
+      }
 
       res.status(201).json({ comment });
     } catch (error) {

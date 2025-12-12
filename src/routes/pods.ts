@@ -4,6 +4,7 @@ import { body, validationResult } from 'express-validator';
 import prisma from '../utils/prisma.js';
 import { ApiResponse } from '../utils/responses.js';
 import { checkPodMembership, checkPodOwnership, userSelectMinimal } from '../utils/permissions.js';
+import { createAndEmitNotification } from '../utils/notifications.js';
 
 const router = express.Router();
 
@@ -799,7 +800,8 @@ router.post('/:podId/join', authMiddleware, async (req: AuthenticatedRequest, re
 
     // Check if pod exists
     const pod = await prisma.pod.findUnique({
-      where: { id: podId }
+      where: { id: podId },
+      select: { id: true, name: true, ownerId: true }
     });
 
     if (!pod) {
@@ -842,6 +844,17 @@ router.post('/:podId/join', authMiddleware, async (req: AuthenticatedRequest, re
         }
       }
     });
+
+    // Create notification for pod owner
+    if (pod && pod.ownerId !== req.user!.id) {
+      await createAndEmitNotification({
+        userId: pod.ownerId,
+        type: 'pod_join',
+        title: 'New Member',
+        message: `${req.user!.fullName} joined ${pod.name}`,
+        linkedId: podId
+      });
+    }
 
     res.status(201).json({ membership });
   } catch (error) {
