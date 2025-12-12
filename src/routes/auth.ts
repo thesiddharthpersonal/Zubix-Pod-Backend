@@ -178,7 +178,14 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
         portfolioUrl: true,
         othersUrl: true,
         createdAt: true,
-        updatedAt: true
+        updatedAt: true,
+        ownedPods: {
+          select: {
+            id: true,
+            name: true,
+            isApproved: true
+          }
+        }
       }
     });
 
