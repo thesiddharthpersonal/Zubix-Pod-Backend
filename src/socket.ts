@@ -181,13 +181,15 @@ const setupSocketIO = (server: HttpServer): Server => {
     });
 
     // Send a message
-    socket.on('send-message', async (data: { roomId: string; content: string; replyToId?: string }) => {
+    socket.on('send-message', async (data: { roomId: string; content: string; replyToId?: string; mediaUrl?: string; mediaType?: string }) => {
       try {
-        const { roomId, content, replyToId } = data;
+        const { roomId, content, replyToId, mediaUrl, mediaType } = data;
 
         if (!content || !content.trim()) {
-          socket.emit('error', { message: 'Message content is required' });
-          return;
+          if (!mediaUrl) {
+            socket.emit('error', { message: 'Message content or media is required' });
+            return;
+          }
         }
 
         // Verify room exists
@@ -245,10 +247,12 @@ const setupSocketIO = (server: HttpServer): Server => {
         // Save message to database
         const message = await prisma.message.create({
           data: {
-            content: content.trim(),
+            content: content?.trim() || '',
             roomId,
             senderId: socket.user!.id,
-            replyToId: replyToId || undefined
+            replyToId: replyToId || undefined,
+            mediaUrl: mediaUrl || undefined,
+            mediaType: mediaType || undefined
           },
           include: {
             sender: {
@@ -371,13 +375,15 @@ const setupSocketIO = (server: HttpServer): Server => {
     });
 
     // Send direct message
-    socket.on('send-dm', async (data: { chatId: string; content: string; replyToId?: string }) => {
+    socket.on('send-dm', async (data: { chatId: string; content: string; replyToId?: string; mediaUrl?: string; mediaType?: string }) => {
       try {
-        const { chatId, content, replyToId } = data;
+        const { chatId, content, replyToId, mediaUrl, mediaType } = data;
 
         if (!content || !content.trim()) {
-          socket.emit('error', { message: 'Message content is required' });
-          return;
+          if (!mediaUrl) {
+            socket.emit('error', { message: 'Message content or media is required' });
+            return;
+          }
         }
 
         // Verify user is a participant
@@ -398,10 +404,12 @@ const setupSocketIO = (server: HttpServer): Server => {
         // Save message to database
         const message = await prisma.message.create({
           data: {
-            content: content.trim(),
+            content: content?.trim() || '',
             chatId,
             senderId: socket.user!.id,
-            replyToId: replyToId || undefined
+            replyToId: replyToId || undefined,
+            mediaUrl: mediaUrl || undefined,
+            mediaType: mediaType || undefined
           },
           include: {
             sender: {

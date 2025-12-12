@@ -387,6 +387,8 @@ model Message {
   chatId     String?
   senderId   String
   replyToId  String?
+  mediaUrl   String?
+  mediaType  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
