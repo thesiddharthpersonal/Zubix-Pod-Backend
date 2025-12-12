@@ -638,20 +638,27 @@ router.post('/:roomId/join-request', authMiddleware, async (req: AuthenticatedRe
       return res.status(403).json({ error: 'You must be a member of the pod to request joining a room' });
     }
 
+    // Check if user is the room creator - automatically a member
+    if (room.createdBy === userId) {
+      return res.json({ message: 'You are the creator of this room', status: 'MEMBER' });
+    }
+
+    // Check if user is already a room member (applies to both public and private rooms)
+    const existingMember = await prisma.roomMember.findUnique({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId
+        }
+      }
+    });
+
+    if (existingMember) {
+      return res.json({ message: 'You are already a member of this room', status: 'MEMBER' });
+    }
+
     // Public rooms - directly add member
     if (room.privacy === 'PUBLIC') {
-      const existingMember = await prisma.roomMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId,
-            userId
-          }
-        }
-      });
-
-      if (existingMember) {
-        return res.status(400).json({ error: 'You are already a member of this room' });
-      }
 
       await prisma.roomMember.create({
         data: {
