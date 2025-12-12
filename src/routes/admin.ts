@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import { adminAuthMiddleware, AdminRequest } from '../middleware/adminAuth.js';
 import prisma from '../utils/prisma.js';
+import { createAndEmitNotification } from '../utils/notifications.js';
 
 const router = express.Router();
 
@@ -526,20 +527,24 @@ router.post('/notifications/send', async (req: AdminRequest, res: Response): Pro
       return;
     }
 
-    // Create notifications for all recipients
-    await prisma.notification.createMany({
-      data: userIds.map(userId => ({
-        userId,
-        type: type || 'message',
-        title,
-        message,
-        isRead: false
-      }))
-    });
+    // Create notifications for all recipients with push notifications
+    const notifications = await Promise.allSettled(
+      userIds.map(userId => 
+        createAndEmitNotification({
+          userId,
+          type: (type || 'message') as any,
+          title,
+          message
+        })
+      )
+    );
+
+    const successCount = notifications.filter(n => n.status === 'fulfilled').length;
 
     res.json({ 
       message: 'Notifications sent successfully',
-      count: userIds.length 
+      count: successCount,
+      total: userIds.length
     });
   } catch (error) {
     console.error('Send notification error:', error);
