@@ -7,7 +7,7 @@ export const adminMiddleware = (req: AuthenticatedRequest, res: Response, next: 
     return;
   }
 
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'ADMIN' && req.user.role !== 'admin') {
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
