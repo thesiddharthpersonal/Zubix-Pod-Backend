@@ -149,6 +149,7 @@ model User {
   roomJoinRequests       RoomJoinRequest[]     @relation("UserRoomJoinRequests")
   startupIdeas           StartupIdea[]
   jobApplications        JobApplication[]
+  pushSubscriptions      PushSubscription[]
 
   @@map("users")
 }
@@ -683,4 +684,21 @@ model IdolPitchDeck {
   @@index([isActive])
   @@index([createdAt])
   @@map("idol_pitch_decks")
+}
+
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
