@@ -40,10 +40,10 @@ const signupController = async (req: AuthenticatedRequest, res: Response): Promi
       return;
     }
 
-    // Generate unique username from email
+    // Generate unique username from full name
     let username = '';
     let isUnique = false;
-    const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ''); // Remove special characters
+    const baseUsername = fullName.toLowerCase().replace(/[^a-zA-Z0-9]/g, ''); // Remove special characters and convert to lowercase
     
     while (!isUnique) {
       const randomDigits = Math.floor(Math.random() * 9000) + 1000; // Generates 1000-9999 (4 digits)
