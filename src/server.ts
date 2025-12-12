@@ -22,6 +22,7 @@ import startupIdeasRoutes from './routes/startupIdeas.js';
 import jobsRoutes from './routes/jobs.js';
 import idolPitchDecksRoutes from './routes/idolPitchDecks.js';
 import adminRoutes from './routes/admin.js';
+import adminAuthRoutes from './routes/adminAuth.js';
 
 const app: Express = express();
 const server: http.Server = http.createServer(app);
@@ -97,6 +98,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/startup-ideas', startupIdeasRoutes);
 app.use('/api/jobs', jobsRoutes);
 app.use('/api/idol-pitch-decks', idolPitchDecksRoutes);
+app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 404 handler

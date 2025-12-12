@@ -1,16 +1,14 @@
 import express, { Response } from 'express';
-import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
-import { adminMiddleware } from '../middleware/admin.js';
+import { adminAuthMiddleware, AdminRequest } from '../middleware/adminAuth.js';
 import prisma from '../utils/prisma.js';
 
 const router = express.Router();
 
-// Apply both auth and admin middleware to all routes
-router.use(authMiddleware);
-router.use(adminMiddleware);
+// Apply admin auth middleware to all routes
+router.use(adminAuthMiddleware);
 
 // Dashboard Statistics
-router.get('/stats', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const [
       totalUsers,
@@ -49,7 +47,7 @@ router.get('/stats', async (req: AuthenticatedRequest, res: Response): Promise<v
 });
 
 // User Management
-router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/users', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search, role } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -99,7 +97,7 @@ router.get('/users', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-router.patch('/users/:userId/role', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.patch('/users/:userId/role', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const { role } = req.body;
@@ -121,7 +119,7 @@ router.patch('/users/:userId/role', async (req: AuthenticatedRequest, res: Respo
   }
 });
 
-router.delete('/users/:userId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/users/:userId', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
 
@@ -140,7 +138,7 @@ router.delete('/users/:userId', async (req: AuthenticatedRequest, res: Response)
 });
 
 // Pod Management
-router.get('/pods', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/pods', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -187,7 +185,7 @@ router.get('/pods', async (req: AuthenticatedRequest, res: Response): Promise<vo
   }
 });
 
-router.delete('/pods/:podId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/pods/:podId', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { podId } = req.params;
     await prisma.pod.delete({ where: { id: podId } });
@@ -199,7 +197,7 @@ router.delete('/pods/:podId', async (req: AuthenticatedRequest, res: Response): 
 });
 
 // Post Management
-router.get('/posts', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/posts', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -247,7 +245,7 @@ router.get('/posts', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-router.delete('/posts/:postId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/posts/:postId', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { postId } = req.params;
     await prisma.post.delete({ where: { id: postId } });
@@ -259,7 +257,7 @@ router.delete('/posts/:postId', async (req: AuthenticatedRequest, res: Response)
 });
 
 // Event Management
-router.get('/events', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/events', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -299,7 +297,7 @@ router.get('/events', async (req: AuthenticatedRequest, res: Response): Promise<
   }
 });
 
-router.delete('/events/:eventId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/events/:eventId', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { eventId } = req.params;
     await prisma.event.delete({ where: { id: eventId } });
@@ -311,7 +309,7 @@ router.delete('/events/:eventId', async (req: AuthenticatedRequest, res: Respons
 });
 
 // Room Management
-router.get('/rooms', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.get('/rooms', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search } = req.query;
     const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -351,7 +349,7 @@ router.get('/rooms', async (req: AuthenticatedRequest, res: Response): Promise<v
   }
 });
 
-router.delete('/rooms/:roomId', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+router.delete('/rooms/:roomId', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
     await prisma.room.delete({ where: { id: roomId } });
