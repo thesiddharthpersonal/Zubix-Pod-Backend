@@ -511,52 +511,84 @@ router.get('/:roomId/members', authMiddleware, isPodOwnerOrCoOwnerViaRoom, async
       return res.status(404).json({ error: 'Room not found' });
     }
 
-    console.log('Room found:', room.name, 'Pod owner:', room.pod.ownerId);
+    console.log('Room found:', room.name, 'Pod owner:', room.pod.ownerId, 'Privacy:', room.privacy);
 
-    const members = await prisma.roomMember.findMany({
-      where: { roomId },
-      orderBy: {
-        joinedAt: 'asc'
-      }
-    });
+    // For PRIVATE rooms, fetch RoomMembers
+    // For GENERAL rooms, fetch all PodMembers
+    let formattedMembers;
+    let totalCount;
 
-    console.log('Found room members:', members.length);
+    if (room.privacy === 'PRIVATE') {
+      const roomMembers = await prisma.roomMember.findMany({
+        where: { roomId },
+        orderBy: { joinedAt: 'asc' }
+      });
 
-    // Fetch user details for each member
-    const userIds = members.map(m => m.userId);
-    const users = await prisma.user.findMany({
-      where: {
-        id: { in: userIds }
-      },
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        profilePhoto: true,
-        role: true
-      }
-    });
+      console.log('Found room members (PRIVATE room):', roomMembers.length);
 
-    // Create a map of users for quick lookup
-    const userMap = new Map(users.map(u => [u.id, u]));
+      const userIds = roomMembers.map(m => m.userId);
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          email: true,
+          profilePhoto: true,
+          role: true
+        }
+      });
 
-    // Combine member data with user data
-    const formattedMembers = members.map(member => {
-      const user = userMap.get(member.userId);
-      return {
-        id: user?.id || member.userId,
-        username: user?.username || 'Unknown',
-        fullName: user?.fullName || 'Unknown User',
-        email: user?.email,
-        profilePhoto: user?.profilePhoto,
-        role: user?.role || 'MEMBER',
+      const userMap = new Map(users.map(u => [u.id, u]));
+
+      formattedMembers = roomMembers.map(member => {
+        const user = userMap.get(member.userId);
+        return {
+          id: user?.id || member.userId,
+          username: user?.username || 'Unknown',
+          fullName: user?.fullName || 'Unknown User',
+          email: user?.email,
+          profilePhoto: user?.profilePhoto,
+          role: user?.role || 'MEMBER',
+          joinedAt: member.joinedAt
+        };
+      });
+      totalCount = roomMembers.length;
+    } else {
+      // For GENERAL rooms, return all pod members
+      const podMembers = await prisma.podMember.findMany({
+        where: { podId: room.podId },
+        orderBy: { joinedAt: 'asc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              email: true,
+              profilePhoto: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      console.log('Found pod members (GENERAL room):', podMembers.length);
+
+      formattedMembers = podMembers.map(member => ({
+        id: member.user.id,
+        username: member.user.username,
+        fullName: member.user.fullName,
+        email: member.user.email,
+        profilePhoto: member.user.profilePhoto,
+        role: member.user.role,
         joinedAt: member.joinedAt
-      };
-    });
+      }));
+      totalCount = podMembers.length;
+    }
 
     console.log('Returning members:', formattedMembers.length, 'members');
-    res.json({ members: formattedMembers, totalCount: members.length });
+    res.json({ members: formattedMembers, totalCount });
   } catch (error) {
     console.error('Get room members error:', error);
     res.status(500).json({ error: 'Failed to fetch members' });
