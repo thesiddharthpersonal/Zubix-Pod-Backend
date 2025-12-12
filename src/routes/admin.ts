@@ -123,12 +123,6 @@ router.delete('/users/:userId', async (req: AdminRequest, res: Response): Promis
   try {
     const { userId } = req.params;
 
-    // Don't allow deleting yourself
-    if (userId === req.user!.id) {
-      res.status(400).json({ error: 'Cannot delete your own account' });
-      return;
-    }
-
     await prisma.user.delete({ where: { id: userId } });
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
