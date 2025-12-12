@@ -107,6 +107,15 @@ router.post('/login',
             { email: emailOrMobile },
             { mobile: emailOrMobile }
           ]
+        },
+        include: {
+          ownedPods: {
+            select: {
+              id: true,
+              name: true,
+              isApproved: true
+            }
+          }
         }
       });
 
