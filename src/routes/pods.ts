@@ -388,6 +388,7 @@ router.post('/',
         name,
         description,
         isPublic: isPublic !== undefined ? isPublic : true,
+        isApproved: false, // Require admin approval for new pods
         avatar,
         logo,
         coverImage,

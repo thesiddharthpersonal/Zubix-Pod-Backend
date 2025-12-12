@@ -13,6 +13,7 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
     const [
       totalUsers,
       totalPods,
+      pendingPods,
       totalPosts,
       totalEvents,
       totalRooms,
@@ -22,6 +23,7 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
     ] = await Promise.all([
       prisma.user.count(),
       prisma.pod.count(),
+      prisma.pod.count({ where: { isApproved: false } }),
       prisma.post.count(),
       prisma.event.count(),
       prisma.room.count(),
@@ -32,7 +34,7 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
 
     const stats = {
       users: { total: totalUsers, recent: recentUsers },
-      pods: { total: totalPods },
+      pods: { total: totalPods, pending: pendingPods },
       posts: { total: totalPosts, recent: recentPosts },
       events: { total: totalEvents },
       rooms: { total: totalRooms },
@@ -132,6 +134,123 @@ router.delete('/users/:userId', async (req: AdminRequest, res: Response): Promis
 });
 
 // Pod Management
+
+// Get pending pods (awaiting approval) - Must be before /pods route
+router.get('/pods/pending', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const { page = '1', limit = '20' } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    const [pods, total] = await Promise.all([
+      prisma.pod.findMany({
+        where: { isApproved: false },
+        skip,
+        take: parseInt(limit as string),
+        orderBy: { createdAt: 'desc' },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatar: true,
+              email: true,
+              mobile: true
+            }
+          },
+          _count: {
+            select: {
+              members: true,
+              posts: true,
+              events: true
+            }
+          }
+        }
+      }),
+      prisma.pod.count({ where: { isApproved: false } })
+    ]);
+
+    res.json({ pods, total, page: parseInt(page as string), limit: parseInt(limit as string) });
+  } catch (error) {
+    console.error('Get pending pods error:', error);
+    res.status(500).json({ error: 'Failed to fetch pending pods' });
+  }
+});
+
+// Approve pod
+router.patch('/pods/:podId/approve', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const { podId } = req.params;
+    const pod = await prisma.pod.update({
+      where: { id: podId },
+      data: { isApproved: true },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true
+          }
+        }
+      }
+    });
+
+    // Create notification for pod owner
+    await prisma.notification.create({
+      data: {
+        userId: pod.ownerId,
+        type: 'POD_APPROVED',
+        title: 'Pod Approved! 🎉',
+        message: `Your pod "${pod.name}" has been approved by admin. You can now start managing it.`,
+        linkedId: pod.id
+      }
+    });
+
+    res.json({ pod, message: 'Pod approved successfully' });
+  } catch (error) {
+    console.error('Approve pod error:', error);
+    res.status(500).json({ error: 'Failed to approve pod' });
+  }
+});
+
+// Reject pod
+router.patch('/pods/:podId/reject', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const { podId } = req.params;
+    const { reason } = req.body;
+
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true, name: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    // Create notification for pod owner
+    await prisma.notification.create({
+      data: {
+        userId: pod.ownerId,
+        type: 'POD_REJECTED',
+        title: 'Pod Registration Rejected',
+        message: reason || `Your pod "${pod.name}" registration was not approved. Please contact support for more details.`,
+        linkedId: podId
+      }
+    });
+
+    // Delete the rejected pod
+    await prisma.pod.delete({ where: { id: podId } });
+
+    res.json({ message: 'Pod rejected and deleted successfully' });
+  } catch (error) {
+    console.error('Reject pod error:', error);
+    res.status(500).json({ error: 'Failed to reject pod' });
+  }
+});
+
 router.get('/pods', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', search } = req.query;
