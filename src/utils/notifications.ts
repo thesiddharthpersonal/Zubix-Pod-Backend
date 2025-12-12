@@ -20,6 +20,7 @@ interface CreateNotificationParams {
 }
 
 export const createAndEmitNotification = async (params: CreateNotificationParams) => {
+  console.log(`🔔 createAndEmitNotification called for user: ${params.userId}, title: ${params.title}`);
   try {
     // Create notification in database
     const notification = await prisma.notification.create({
@@ -32,6 +33,7 @@ export const createAndEmitNotification = async (params: CreateNotificationParams
         isRead: false
       }
     });
+    console.log(`✅ Notification created in DB with ID: ${notification.id}`);
 
     // Emit notification via socket if io instance is available
     if (ioInstance) {
