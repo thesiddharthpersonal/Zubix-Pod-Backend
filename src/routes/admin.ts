@@ -473,4 +473,78 @@ router.delete('/rooms/:roomId', async (req: AdminRequest, res: Response): Promis
   }
 });
 
+// Get all users for notification recipient selection
+router.get('/users/all', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        role: true
+      },
+      orderBy: { fullName: 'asc' }
+    });
+    res.json(users);
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Send custom notification
+router.post('/notifications/send', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const { recipientType, recipientId, role, title, message, type } = req.body;
+
+    if (!title || !message) {
+      res.status(400).json({ error: 'Title and message are required' });
+      return;
+    }
+
+    let userIds: string[] = [];
+
+    // Determine recipient user IDs based on type
+    if (recipientType === 'all') {
+      const allUsers = await prisma.user.findMany({ select: { id: true } });
+      userIds = allUsers.map(u => u.id);
+    } else if (recipientType === 'specific' && recipientId) {
+      userIds = [recipientId];
+    } else if (recipientType === 'role' && role) {
+      const roleUsers = await prisma.user.findMany({
+        where: { role: role as any },
+        select: { id: true }
+      });
+      userIds = roleUsers.map(u => u.id);
+    } else {
+      res.status(400).json({ error: 'Invalid recipient configuration' });
+      return;
+    }
+
+    if (userIds.length === 0) {
+      res.status(400).json({ error: 'No recipients found' });
+      return;
+    }
+
+    // Create notifications for all recipients
+    await prisma.notification.createMany({
+      data: userIds.map(userId => ({
+        userId,
+        type: type || 'message',
+        title,
+        message,
+        isRead: false
+      }))
+    });
+
+    res.json({ 
+      message: 'Notifications sent successfully',
+      count: userIds.length 
+    });
+  } catch (error) {
+    console.error('Send notification error:', error);
+    res.status(500).json({ error: 'Failed to send notifications' });
+  }
+});
+
 export default router;

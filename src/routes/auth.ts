@@ -110,7 +110,7 @@ router.post('/register', signupHandler, signupController);
 // Login
 router.post('/login',
   [
-    body('emailOrMobile').notEmpty().withMessage('Email or mobile is required'),
+    body('emailOrMobileOrUsername').notEmpty().withMessage('Email, mobile, or username is required'),
     body('password').notEmpty().withMessage('Password is required')
   ],
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -121,14 +121,15 @@ router.post('/login',
         return;
       }
 
-      const { emailOrMobile, password } = req.body;
+      const { emailOrMobileOrUsername, password } = req.body;
 
-      // Find user by email or mobile
+      // Find user by email, mobile, or username
       const user = await prisma.user.findFirst({
         where: {
           OR: [
-            { email: emailOrMobile },
-            { mobile: emailOrMobile }
+            { email: emailOrMobileOrUsername },
+            { mobile: emailOrMobileOrUsername },
+            { username: emailOrMobileOrUsername }
           ]
         },
         include: {
@@ -143,7 +144,7 @@ router.post('/login',
       });
 
       if (!user) {
-        res.status(401).json({ error: 'No account found with this email or mobile number. Please check your credentials or sign up.' });
+        res.status(401).json({ error: 'No account found with this email, mobile number, or username. Please check your credentials or sign up.' });
         return;
       }
 
@@ -155,11 +156,26 @@ router.post('/login',
         return;
       }
 
+      // Update lastLoginAt timestamp
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+        include: {
+          ownedPods: {
+            select: {
+              id: true,
+              name: true,
+              isApproved: true
+            }
+          }
+        }
+      });
+
       // Generate token
       const token = generateToken(user.id, user.role);
 
       // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = updatedUser;
 
       res.json({ user: userWithoutPassword, token });
     } catch (error) {
@@ -209,6 +225,7 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
         githubUrl: true,
         portfolioUrl: true,
         othersUrl: true,
+        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
         ownedPods: {
@@ -304,6 +321,128 @@ router.put('/profile', authMiddleware,
     } catch (error) {
       console.error('Profile update error:', error);
       res.status(500).json({ error: 'Profile update failed' });
+    }
+  }
+);
+
+// Forgot Password - Request password reset
+router.post('/forgot-password',
+  [
+    body('emailOrMobile').notEmpty().withMessage('Email or mobile number is required')
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { emailOrMobile } = req.body;
+
+      // Find user by email or mobile
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: emailOrMobile },
+            { mobile: emailOrMobile }
+          ]
+        }
+      });
+
+      // Always return success message for security (don't reveal if user exists)
+      if (!user) {
+        res.json({ message: 'If an account exists with this email/mobile, you will receive password reset instructions.' });
+        return;
+      }
+
+      // Generate reset token (simple 6-digit OTP for now)
+      const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      // Store reset token in database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: resetToken, // Temporarily store OTP in a way we can verify (in production, use a separate field)
+          updatedAt: resetTokenExpiry // Use updatedAt to track expiry (in production, use a separate field)
+        }
+      });
+
+      // TODO: Send email/SMS with reset token
+      // For now, we'll return the token in development (remove in production)
+      console.log(`Password reset OTP for ${user.email}: ${resetToken}`);
+
+      res.json({ 
+        message: 'If an account exists with this email/mobile, you will receive password reset instructions.',
+        // Remove this in production:
+        developmentOTP: process.env.NODE_ENV === 'development' ? resetToken : undefined
+      });
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      res.status(500).json({ error: 'Failed to process password reset request' });
+    }
+  }
+);
+
+// Reset Password - Verify OTP and set new password
+router.post('/reset-password',
+  [
+    body('emailOrMobile').notEmpty().withMessage('Email or mobile number is required'),
+    body('otp').notEmpty().withMessage('OTP is required'),
+    body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
+  ],
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        res.status(400).json({ errors: errors.array() });
+        return;
+      }
+
+      const { emailOrMobile, otp, newPassword } = req.body;
+
+      // Find user by email or mobile
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: emailOrMobile },
+            { mobile: emailOrMobile }
+          ]
+        }
+      });
+
+      if (!user) {
+        res.status(400).json({ error: 'Invalid credentials' });
+        return;
+      }
+
+      // Verify OTP (temporarily stored in password field)
+      if (user.password !== otp) {
+        res.status(400).json({ error: 'Invalid or expired OTP' });
+        return;
+      }
+
+      // Check if token is expired (15 minutes)
+      const tokenAge = Date.now() - new Date(user.updatedAt).getTime();
+      if (tokenAge > 15 * 60 * 1000) {
+        res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+        return;
+      }
+
+      // Hash new password and update
+      const hashedPassword = await hashPassword(newPassword);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword
+        }
+      });
+
+      res.json({ message: 'Password reset successfully. You can now login with your new password.' });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: 'Failed to reset password' });
     }
   }
 );

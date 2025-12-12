@@ -122,6 +122,7 @@ model User {
   portfolioUrl               String?
   othersUrl                  String?
   additionalLinks            String[]         @default([])
+  lastLoginAt                DateTime?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
