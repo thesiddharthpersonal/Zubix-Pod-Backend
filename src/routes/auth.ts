@@ -36,7 +36,11 @@ const signupController = async (req: AuthenticatedRequest, res: Response): Promi
     });
 
     if (existingUser) {
-      res.status(400).json({ error: 'Email or mobile already exists' });
+      if (existingUser.email === email) {
+        res.status(409).json({ error: 'An account with this email already exists. Please use a different email or login.' });
+      } else {
+        res.status(409).json({ error: 'An account with this mobile number already exists. Please use a different number or login.' });
+      }
       return;
     }
 
@@ -139,7 +143,7 @@ router.post('/login',
       });
 
       if (!user) {
-        res.status(401).json({ error: 'Invalid credentials' });
+        res.status(401).json({ error: 'No account found with this email or mobile number. Please check your credentials or sign up.' });
         return;
       }
 
@@ -147,7 +151,7 @@ router.post('/login',
       const isValidPassword = await comparePassword(password, user.password);
 
       if (!isValidPassword) {
-        res.status(401).json({ error: 'Invalid credentials' });
+        res.status(401).json({ error: 'Incorrect password. Please try again or reset your password.' });
         return;
       }
 

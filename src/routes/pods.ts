@@ -13,7 +13,7 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const { q } = req.query;
 
     if (!q) {
-      res.status(400).json({ error: 'Search query is required' });
+      res.status(400).json({ error: 'Please enter a search term to find pods.' });
       return;
     }
 
@@ -307,7 +307,7 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
     });
 
     if (!pod) {
-      res.status(404).json({ error: 'Pod not found' });
+      res.status(404).json({ error: 'This pod does not exist or has been removed.' });
       return;
     }
 
@@ -552,7 +552,7 @@ router.put('/:podId',
       const isCoOwner = pod.members.length > 0;
 
       if (!isOwner && !isCoOwner) {
-        res.status(403).json({ error: 'You do not have permission to edit this pod' });
+        res.status(403).json({ error: 'Only pod owners and co-owners can edit this pod.' });
         return;
       }
 
