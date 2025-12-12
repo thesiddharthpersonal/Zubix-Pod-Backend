@@ -54,6 +54,10 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
           where: { userId, status: 'PENDING' },
           select: { id: true, status: true }
         },
+        readStatus: {
+          where: { userId },
+          select: { lastReadAt: true }
+        },
         _count: {
           select: {
             messages: true,
@@ -67,20 +71,52 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
     });
 
     // Format rooms and include privacy/membership info
-    const rooms = allRooms.map(room => {
+    const rooms = await Promise.all(allRooms.map(async room => {
       const isMemberOfRoom = room.members.length > 0;
       const hasPendingRequest = room.joinRequests.length > 0;
       const isPodOwner = room.pod.ownerId === userId;
+      const isMember = isMemberOfRoom || isPodOwner;
+
+      // Calculate unread count for members
+      let unreadCount = 0;
+      if (isMember) {
+        const lastReadAt = room.readStatus[0]?.lastReadAt;
+        if (lastReadAt) {
+          unreadCount = await prisma.message.count({
+            where: {
+              roomId: room.id,
+              createdAt: {
+                gt: lastReadAt
+              },
+              senderId: {
+                not: userId // Don't count user's own messages
+              }
+            }
+          });
+        } else {
+          // If user never read messages, count all messages except their own
+          unreadCount = await prisma.message.count({
+            where: {
+              roomId: room.id,
+              senderId: {
+                not: userId
+              }
+            }
+          });
+        }
+      }
 
       // Show all rooms to pod members, but indicate membership status
       return {
         ...room,
-        isMember: isMemberOfRoom || isPodOwner,
+        isMember,
         joinRequestStatus: hasPendingRequest ? 'PENDING' : null,
+        unreadCount: isMember ? unreadCount : undefined,
         members: undefined,
-        joinRequests: undefined
+        joinRequests: undefined,
+        readStatus: undefined
       };
-    });
+    }));
 
     res.json({ rooms });
   } catch (error) {
@@ -417,6 +453,24 @@ router.get('/:roomId/messages', authMiddleware, async (req: AuthenticatedRequest
         createdAt: 'desc'
       },
       take: parseInt(typeof limit === 'string' ? limit : '50')
+    });
+
+    // Update or create read status for the user in this room
+    await prisma.roomReadStatus.upsert({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId
+        }
+      },
+      update: {
+        lastReadAt: new Date()
+      },
+      create: {
+        roomId,
+        userId,
+        lastReadAt: new Date()
+      }
     });
 
     res.json({ messages: messages.reverse() }); // Reverse to show oldest first

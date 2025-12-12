@@ -147,6 +147,7 @@ model User {
   questions              Question[]
   answers                Answer[]
   roomJoinRequests       RoomJoinRequest[]     @relation("UserRoomJoinRequests")
+  roomReadStatus         RoomReadStatus[]
   startupIdeas           StartupIdea[]
   jobApplications        JobApplication[]
   pushSubscriptions      PushSubscription[]
@@ -334,6 +335,7 @@ model Room {
   questions    Question[]
   members      RoomMember[]
   joinRequests RoomJoinRequest[]  @relation("RoomJoinRequests")
+  readStatus   RoomReadStatus[]
 
   @@index([podId])
   @@index([type])
@@ -341,10 +343,11 @@ model Room {
 }
 
 model RoomMember {
-  id        String   @id @default(uuid())
-  roomId    String
-  userId    String
-  joinedAt  DateTime @default(now())
+  id         String    @id @default(uuid())
+  roomId     String
+  userId     String
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime? @updatedAt
 
   // Relations
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -378,6 +381,22 @@ enum RoomRequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+model RoomReadStatus {
+  id         String   @id @default(uuid())
+  roomId     String
+  userId     String
+  lastReadAt DateTime @updatedAt
+
+  // Relations
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@index([userId])
+  @@map("room_read_status")
 }
 
 model Message {
