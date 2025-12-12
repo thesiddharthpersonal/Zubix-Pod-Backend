@@ -447,4 +447,16 @@ router.post('/reset-password',
   }
 );
 
+// Logout (client-side handles token removal, this is just for logging/cleanup)
+router.post('/logout', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    // In a JWT system, logout is primarily handled client-side by removing the token
+    // This endpoint can be used for additional cleanup like logging, analytics, etc.
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
 export default router;
