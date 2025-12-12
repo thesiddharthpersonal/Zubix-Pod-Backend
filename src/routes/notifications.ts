@@ -10,6 +10,7 @@ const router = express.Router();
 router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
+    console.log('📬 GET /api/notifications - User ID:', userId);
     const { limit = '50', unreadOnly } = req.query;
 
     const whereClause: any = { userId };
@@ -26,6 +27,7 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
       take: parseInt(typeof limit === 'string' ? limit : '50')
     });
 
+    console.log('📬 Found notifications:', notifications.length);
     res.json({ notifications });
   } catch (error) {
     console.error('Get notifications error:', error);
