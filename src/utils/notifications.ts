@@ -39,6 +39,7 @@ export const createAndEmitNotification = async (params: CreateNotificationParams
     }
 
     // Send push notification to all user's subscriptions
+    console.log(`📤 Sending push notification to user ${params.userId}: ${params.title}`);
     await sendPushNotification(params.userId, {
       title: params.title,
       body: params.message,
