@@ -527,6 +527,8 @@ router.post('/notifications/send', async (req: AdminRequest, res: Response): Pro
       return;
     }
 
+    console.log(`🔥 Sending notifications to ${userIds.length} users: ${title}`);
+    
     // Create notifications for all recipients with push notifications
     const notifications = await Promise.allSettled(
       userIds.map(userId => 
@@ -540,6 +542,8 @@ router.post('/notifications/send', async (req: AdminRequest, res: Response): Pro
     );
 
     const successCount = notifications.filter(n => n.status === 'fulfilled').length;
+    const failedCount = notifications.filter(n => n.status === 'rejected').length;
+    console.log(`📊 Notifications: ${successCount} successful, ${failedCount} failed`);
 
     res.json({ 
       message: 'Notifications sent successfully',
