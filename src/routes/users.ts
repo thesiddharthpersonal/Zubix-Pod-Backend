@@ -60,6 +60,62 @@ router.get('/search', authMiddleware, async (req: AuthenticatedRequest, res: Res
   }
 });
 
+// Get user by username - MUST be before /:userId route
+router.get('/username/:username', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { username } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { username },
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        fullName: true,
+        bio: true,
+        profilePhoto: true,
+        professionCategory: true,
+        organisationName: true,
+        brandName: true,
+        designation: true,
+        workingExperienceFrom: true,
+        workingExperienceTo: true,
+        startupSubcategory: true,
+        businessType: true,
+        briefAboutOrganisation: true,
+        operatingCity: true,
+        website: true,
+        collegeName: true,
+        currentCourse: true,
+        yearSemester: true,
+        interestDomain: true,
+        startupFoundedYear: true,
+        workingDomain: true,
+        linkedinUrl: true,
+        instagramUrl: true,
+        facebookUrl: true,
+        twitterUrl: true,
+        youtubeUrl: true,
+        githubUrl: true,
+        portfolioUrl: true,
+        othersUrl: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user by username error:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 // Get user profile by ID
 router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -113,62 +169,6 @@ router.get('/:userId', authMiddleware, async (req: AuthenticatedRequest, res: Re
   } catch (error) {
     console.error('Get user profile error:', error);
     res.status(500).json({ error: 'Failed to fetch user profile' });
-  }
-});
-
-// Get user by username
-router.get('/username/:username', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  try {
-    const { username } = req.params;
-
-    const user = await prisma.user.findUnique({
-      where: { username },
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        fullName: true,
-        bio: true,
-        profilePhoto: true,
-        professionCategory: true,
-        organisationName: true,
-        brandName: true,
-        designation: true,
-        workingExperienceFrom: true,
-        workingExperienceTo: true,
-        startupSubcategory: true,
-        businessType: true,
-        briefAboutOrganisation: true,
-        operatingCity: true,
-        website: true,
-        collegeName: true,
-        currentCourse: true,
-        yearSemester: true,
-        interestDomain: true,
-        startupFoundedYear: true,
-        workingDomain: true,
-        linkedinUrl: true,
-        instagramUrl: true,
-        facebookUrl: true,
-        twitterUrl: true,
-        youtubeUrl: true,
-        githubUrl: true,
-        portfolioUrl: true,
-        othersUrl: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    });
-
-    if (!user) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    res.json({ user });
-  } catch (error) {
-    console.error('Get user by username error:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
