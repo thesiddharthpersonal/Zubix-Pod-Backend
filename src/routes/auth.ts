@@ -369,13 +369,26 @@ router.post('/forgot-password',
         }
       });
 
-      // TODO: Send email/SMS with reset token
-      // For now, we'll return the token in development (remove in production)
-      console.log(`Password reset OTP for ${user.email}: ${resetToken}`);
+      // Send OTP via email
+      if (user.email) {
+        const { sendOTPEmail } = await import('../utils/email.js');
+        const emailSent = await sendOTPEmail(user.email, resetToken, user.fullName || user.username);
+        
+        if (emailSent) {
+          console.log(`✅ Password reset OTP sent to ${user.email}`);
+        } else {
+          console.log(`⚠️ Failed to send email to ${user.email}, but OTP generated: ${resetToken}`);
+        }
+      }
+
+      // Log OTP in development mode for easy testing
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔐 [DEV] Password reset OTP for ${user.email || user.mobile}: ${resetToken}`);
+      }
 
       res.json({ 
         message: 'If an account exists with this email/mobile, you will receive password reset instructions.',
-        // Remove this in production:
+        // Only return OTP in development mode
         developmentOTP: process.env.NODE_ENV === 'development' ? resetToken : undefined
       });
     } catch (error) {
