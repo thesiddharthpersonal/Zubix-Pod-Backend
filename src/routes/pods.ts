@@ -762,6 +762,65 @@ router.put('/:podId',
   }
 );
 
+// Toggle accepting pitches for a pod
+router.patch('/:podId/accepting-pitches', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId } = req.params;
+    const { acceptingPitches } = req.body;
+
+    if (typeof acceptingPitches !== 'boolean') {
+      res.status(400).json({ error: 'acceptingPitches must be a boolean value' });
+      return;
+    }
+
+    // Check if pod exists and user has permission
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      include: {
+        members: {
+          where: {
+            userId: req.user!.id,
+            isCoOwner: true
+          }
+        }
+      }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    // Check if user is owner or co-owner
+    const isOwner = pod.ownerId === req.user!.id;
+    const isCoOwner = pod.members.length > 0;
+
+    if (!isOwner && !isCoOwner) {
+      res.status(403).json({ error: 'Only pod owners and co-owners can modify pitch acceptance settings' });
+      return;
+    }
+
+    // Update the pod
+    const updatedPod = await prisma.pod.update({
+      where: { id: podId },
+      data: { acceptingPitches },
+      select: {
+        id: true,
+        name: true,
+        acceptingPitches: true
+      }
+    });
+
+    res.json({ 
+      message: `Pod is now ${acceptingPitches ? 'accepting' : 'not accepting'} pitches`,
+      pod: updatedPod 
+    });
+  } catch (error) {
+    console.error('Toggle accepting pitches error:', error);
+    res.status(500).json({ error: 'Failed to update pitch acceptance settings' });
+  }
+});
+
 // Delete pod
 router.delete('/:podId', authMiddleware, isPodOwner, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {

@@ -219,6 +219,7 @@ model Pod {
   isPublic                  Boolean          @default(true)
   isApproved                Boolean          @default(false)
   isVerified                Boolean          @default(false)
+  acceptingPitches          Boolean          @default(true)
   ownerId                   String
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
