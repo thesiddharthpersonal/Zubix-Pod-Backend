@@ -347,8 +347,6 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
         facebook: pod.facebookUrl,
         twitter: pod.twitterUrl,
         youtube: pod.youtubeUrl,
-        github: pod.githubUrl,
-        portfolio: pod.portfolioUrl,
         others: pod.othersUrl,
         additionalLinks: pod.additionalLinks || []
       }
