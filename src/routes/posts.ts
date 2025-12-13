@@ -298,7 +298,7 @@ router.post('/',
         return;
       }
 
-      // Check if user is member, owner, or co-owner of the pod
+      // Check if user is member, owner, co-owner, or team member of the pod
       const access = await checkPodAccess(podId, req.user!.id);
 
       if (!access.hasAccess) {
@@ -306,9 +306,11 @@ router.post('/',
         return;
       }
 
-      // Determine post type based on whether user is owner or co-owner
-      const isOwnerOrCoOwner = access.isOwner || access.isCoOwner;
-      const postType = isOwnerOrCoOwner ? 'OWNER_UPDATE' : 'MEMBER_UPDATE';
+      // Determine post type based on role
+      // Owner, Co-owner, and Team Member posts show as OWNER_UPDATE (pod name)
+      // Regular members show as MEMBER_UPDATE (user name)
+      const isOwnerOrCoOwnerOrTeamMember = access.isOwner || access.isCoOwner || access.isTeamMember;
+      const postType = isOwnerOrCoOwnerOrTeamMember ? 'OWNER_UPDATE' : 'MEMBER_UPDATE';
 
       const post = await prisma.post.create({
         data: {
@@ -317,7 +319,8 @@ router.post('/',
           type: postType,
           podId,
           authorId: req.user!.id,
-          isOwnerPost: isOwnerOrCoOwner
+          isOwnerPost: isOwnerOrCoOwnerOrTeamMember,
+          postedByTeamMember: access.isTeamMember
         },
         include: {
           author: {

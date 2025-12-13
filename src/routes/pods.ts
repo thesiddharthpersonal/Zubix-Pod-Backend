@@ -319,11 +319,24 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
       .filter(member => member.isCoOwner)
       .map(member => member.user);
 
+    // Get team members from members where isTeamMember = true
+    const teamMembers = pod.members
+      .filter(member => member.isTeamMember)
+      .map(member => ({
+        ...member.user,
+        joinedAt: member.joinedAt,
+        isTeamMember: true
+      }));
+
     // Check if user is a member
     const isMember = pod.members.some(member => member.userId === req.user!.id);
     const isOwner = pod.ownerId === req.user!.id;
+    
+    // Check if user is team member
+    const userMembership = pod.members.find(member => member.userId === req.user!.id);
+    const isTeamMember = userMembership?.isTeamMember || false;
 
-    res.json({ pod: { ...pod, coOwners }, isMember, isOwner });
+    res.json({ pod: { ...pod, coOwners, teamMembers }, isMember, isOwner, isTeamMember });
   } catch (error) {
     console.error('Get pod error:', error);
     res.status(500).json({ error: 'Failed to fetch pod' });
@@ -1077,6 +1090,7 @@ router.get('/:podId/members', authMiddleware, async (req: AuthenticatedRequest, 
     const memberData = members.map(m => ({
       ...m.user,
       isCoOwner: m.isCoOwner,
+      isTeamMember: m.isTeamMember,
       joinedAt: m.joinedAt
     }));
     
@@ -1415,6 +1429,200 @@ router.post('/:podId/members/:userId/demote', authMiddleware, async (req: Authen
   } catch (error) {
     console.error('Demote co-owner error:', error);
     res.status(500).json({ error: 'Failed to demote co-owner' });
+  }
+});
+
+// Assign member as team member (owner only)
+router.post('/:podId/members/:userId/assign-team-member', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId, userId } = req.params;
+
+    // Check if requesting user is the pod owner
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (pod.ownerId !== req.user!.id) {
+      res.status(403).json({ error: 'Only the pod owner can assign team members' });
+      return;
+    }
+
+    // Check if user is a member
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: { podId, userId }
+      }
+    });
+
+    if (!member) {
+      res.status(404).json({ error: 'User is not a member of this pod' });
+      return;
+    }
+
+    if (member.isCoOwner) {
+      res.status(400).json({ error: 'Co-owners cannot be team members. Please demote from co-owner first.' });
+      return;
+    }
+
+    if (member.isTeamMember) {
+      res.status(400).json({ error: 'User is already a team member' });
+      return;
+    }
+
+    // Assign as team member
+    const updatedMember = await prisma.podMember.update({
+      where: {
+        podId_userId: { podId, userId }
+      },
+      data: {
+        isTeamMember: true
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            profilePhoto: true,
+            email: true,
+            mobile: true
+          }
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Member assigned as team member successfully',
+      member: updatedMember 
+    });
+  } catch (error) {
+    console.error('Assign team member error:', error);
+    res.status(500).json({ error: 'Failed to assign team member' });
+  }
+});
+
+// Remove team member status (owner only)
+router.delete('/:podId/members/:userId/remove-team-member', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId, userId } = req.params;
+
+    // Check if requesting user is the pod owner
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { ownerId: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (pod.ownerId !== req.user!.id) {
+      res.status(403).json({ error: 'Only the pod owner can remove team members' });
+      return;
+    }
+
+    // Check if user is a member
+    const member = await prisma.podMember.findUnique({
+      where: {
+        podId_userId: { podId, userId }
+      }
+    });
+
+    if (!member) {
+      res.status(404).json({ error: 'User is not a member of this pod' });
+      return;
+    }
+
+    if (!member.isTeamMember) {
+      res.status(400).json({ error: 'User is not a team member' });
+      return;
+    }
+
+    // Remove team member status
+    const updatedMember = await prisma.podMember.update({
+      where: {
+        podId_userId: { podId, userId }
+      },
+      data: {
+        isTeamMember: false
+      },
+      include: {
+        user: {
+          select: userSelectMinimal
+        }
+      }
+    });
+
+    res.json({ 
+      message: 'Team member status removed successfully',
+      member: updatedMember 
+    });
+  } catch (error) {
+    console.error('Remove team member error:', error);
+    res.status(500).json({ error: 'Failed to remove team member' });
+  }
+});
+
+// Get team members of a pod
+router.get('/:podId/team-members', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId } = req.params;
+
+    // Check if pod exists
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: { id: true }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    // Get team members
+    const teamMembers = await prisma.podMember.findMany({
+      where: {
+        podId,
+        isTeamMember: true
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            profilePhoto: true,
+            email: true,
+            mobile: true,
+            role: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: {
+        joinedAt: 'asc'
+      }
+    });
+
+    const teamMemberUsers = teamMembers.map(tm => ({
+      ...tm.user,
+      joinedAt: tm.joinedAt,
+      isTeamMember: true
+    }));
+
+    res.json({ teamMembers: teamMemberUsers });
+  } catch (error) {
+    console.error('Get team members error:', error);
+    res.status(500).json({ error: 'Failed to fetch team members' });
   }
 });
 

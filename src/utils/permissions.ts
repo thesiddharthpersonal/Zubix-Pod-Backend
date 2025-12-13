@@ -43,12 +43,13 @@ export async function checkPodCoOwnership(podId: string, userId: string): Promis
 }
 
 /**
- * Check if user has access to pod (member, owner, or co-owner)
+ * Check if user has access to pod (member, owner, co-owner, or team member)
  */
 export async function checkPodAccess(podId: string, userId: string): Promise<{
   hasAccess: boolean;
   isOwner: boolean;
   isCoOwner: boolean;
+  isTeamMember: boolean;
   isMember: boolean;
 }> {
   const [pod, membership] = await Promise.all([
@@ -63,20 +64,24 @@ export async function checkPodAccess(podId: string, userId: string): Promise<{
           userId
         }
       },
-      select: { isCoOwner: true }
+      select: { 
+        isCoOwner: true,
+        isTeamMember: true
+      }
     })
   ]);
 
   if (!pod) {
-    return { hasAccess: false, isOwner: false, isCoOwner: false, isMember: false };
+    return { hasAccess: false, isOwner: false, isCoOwner: false, isTeamMember: false, isMember: false };
   }
 
   const isOwner = pod.ownerId === userId;
   const isCoOwner = membership?.isCoOwner || false;
+  const isTeamMember = membership?.isTeamMember || false;
   const isMember = !!membership;
-  const hasAccess = isOwner || isCoOwner || isMember;
+  const hasAccess = isOwner || isCoOwner || isTeamMember || isMember;
 
-  return { hasAccess, isOwner, isCoOwner, isMember };
+  return { hasAccess, isOwner, isCoOwner, isTeamMember, isMember };
 }
 
 /**

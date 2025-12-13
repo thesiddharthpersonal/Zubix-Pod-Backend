@@ -243,11 +243,12 @@ model Pod {
 }
 
 model PodMember {
-  id        String   @id @default(uuid())
-  podId     String
-  userId    String
-  isCoOwner Boolean  @default(false)
-  joinedAt  DateTime @default(now())
+  id           String   @id @default(uuid())
+  podId        String
+  userId       String
+  isCoOwner    Boolean  @default(false)
+  isTeamMember Boolean  @default(false)
+  joinedAt     DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
@@ -261,16 +262,17 @@ model PodMember {
 }
 
 model Post {
-  id         String   @id @default(uuid())
-  content    String
-  mediaUrls  String[]
-  mediaType  String?
-  type       PostType
-  podId      String
-  authorId   String
-  isOwnerPost Boolean @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(uuid())
+  content         String
+  mediaUrls       String[]
+  mediaType       String?
+  type            PostType
+  podId           String
+  authorId        String
+  isOwnerPost     Boolean  @default(false)
+  postedByTeamMember Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   pod       Pod        @relation(fields: [podId], references: [id], onDelete: Cascade)
