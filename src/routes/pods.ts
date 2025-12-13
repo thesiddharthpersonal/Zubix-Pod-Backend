@@ -278,7 +278,8 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
             email: true,
             mobile: true,
             role: true,
-            createdAt: true
+            createdAt: true,
+            acceptingCalls: true
           }
         },
         members: {
@@ -292,7 +293,8 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
                 email: true,
                 mobile: true,
                 role: true,
-                createdAt: true
+                createdAt: true,
+                acceptingCalls: true
               }
             }
           }

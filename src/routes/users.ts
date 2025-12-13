@@ -554,5 +554,36 @@ router.get('/:userId/pods', authMiddleware, async (req: AuthenticatedRequest, re
   }
 });
 
+// Toggle accepting calls
+router.patch('/accepting-calls', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { acceptingCalls } = req.body;
+
+    if (typeof acceptingCalls !== 'boolean') {
+      res.status(400).json({ error: 'acceptingCalls must be a boolean value' });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { acceptingCalls },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        acceptingCalls: true
+      }
+    });
+
+    res.json({ 
+      message: `You are now ${acceptingCalls ? 'accepting' : 'not accepting'} call bookings`,
+      user: updatedUser 
+    });
+  } catch (error) {
+    console.error('Toggle accepting calls error:', error);
+    res.status(500).json({ error: 'Failed to update call booking status' });
+  }
+});
+
 export default router;
 

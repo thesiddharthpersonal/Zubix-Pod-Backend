@@ -180,6 +180,22 @@ router.post('/',
         return;
       }
 
+      // Check if target user is accepting calls
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { acceptingCalls: true, fullName: true }
+      });
+
+      if (!targetUser) {
+        res.status(404).json({ error: 'Target user not found' });
+        return;
+      }
+
+      if (targetUser.acceptingCalls === false) {
+        res.status(403).json({ error: `${targetUser.fullName} is not accepting call bookings at this time` });
+        return;
+      }
+
       const booking = await prisma.callBooking.create({
         data: {
           podId,

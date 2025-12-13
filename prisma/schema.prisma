@@ -123,6 +123,7 @@ model User {
   othersUrl                  String?
   additionalLinks            String[]         @default([])
   lastLoginAt                DateTime?
+  acceptingCalls             Boolean          @default(true)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
