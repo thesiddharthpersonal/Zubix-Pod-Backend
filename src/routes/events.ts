@@ -776,9 +776,8 @@ router.get('/:eventId/participants/download', authMiddleware, async (req: Authen
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Cache-Control', 'no-cache');
     
-    // Add BOM for proper Excel UTF-8 encoding
-    res.write('\uFEFF');
-    res.send(csvContent);
+    // Add BOM for proper Excel UTF-8 encoding and send CSV
+    res.send('\uFEFF' + csvContent);
   } catch (error) {
     console.error('Download participants CSV error:', error);
     res.status(500).json({ error: 'Failed to download participants list' });
