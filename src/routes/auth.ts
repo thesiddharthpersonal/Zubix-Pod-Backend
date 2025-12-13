@@ -226,6 +226,7 @@ router.get('/me', authMiddleware, async (req: AuthenticatedRequest, res: Respons
         portfolioUrl: true,
         othersUrl: true,
         lastLoginAt: true,
+        acceptingCalls: true,
         createdAt: true,
         updatedAt: true,
         ownedPods: {
