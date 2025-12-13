@@ -1647,4 +1647,170 @@ router.get('/:podId/team-members', authMiddleware, async (req: AuthenticatedRequ
   }
 });
 
+// Get pod shareable link and QR code
+router.get('/:podId/share', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { podId } = req.params;
+
+    const pod = await prisma.pod.findUnique({
+      where: { id: podId },
+      select: {
+        id: true,
+        name: true,
+        shareableCode: true,
+        isPublic: true,
+        isApproved: true
+      }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (!pod.isPublic || !pod.isApproved) {
+      res.status(403).json({ error: 'This pod is not available for sharing' });
+      return;
+    }
+
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const shareableLink = `${baseUrl}/join/${pod.shareableCode}`;
+
+    res.json({
+      shareableCode: pod.shareableCode,
+      shareableLink,
+      podName: pod.name
+    });
+  } catch (error) {
+    console.error('Get shareable link error:', error);
+    res.status(500).json({ error: 'Failed to get shareable link' });
+  }
+});
+
+// Join pod via shareable code
+router.post('/join/:shareableCode', authMiddleware, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { shareableCode } = req.params;
+    const userId = req.user!.id;
+
+    const pod = await prisma.pod.findUnique({
+      where: { shareableCode },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true
+          }
+        },
+        members: {
+          where: { userId },
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Invalid or expired link' });
+      return;
+    }
+
+    if (!pod.isPublic || !pod.isApproved) {
+      res.status(403).json({ error: 'This pod is not available for joining' });
+      return;
+    }
+
+    // Check if user is already a member
+    if (pod.members.length > 0) {
+      res.status(400).json({ error: 'You are already a member of this pod' });
+      return;
+    }
+
+    // Check if user is the owner
+    if (pod.ownerId === userId) {
+      res.status(400).json({ error: 'You are the owner of this pod' });
+      return;
+    }
+
+    // Add user to pod
+    await prisma.podMember.create({
+      data: {
+        userId,
+        podId: pod.id
+      }
+    });
+
+    // Create notification for pod owner
+    await createAndEmitNotification({
+      userId: pod.ownerId,
+      type: 'pod_new_member',
+      title: 'New Member Joined',
+      message: `${req.user!.fullName || req.user!.username} joined ${pod.name} via shared link`,
+      metadata: {
+        podId: pod.id,
+        podName: pod.name,
+        newMemberId: userId,
+        newMemberName: req.user!.fullName || req.user!.username
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Successfully joined the pod',
+      pod: {
+        id: pod.id,
+        name: pod.name,
+        description: pod.description,
+        logo: pod.logo
+      }
+    });
+  } catch (error) {
+    console.error('Join pod by code error:', error);
+    res.status(500).json({ error: 'Failed to join pod' });
+  }
+});
+
+// Get pod by shareable code (public view for non-members)
+router.get('/preview/:shareableCode', async (req, res): Promise<void> => {
+  try {
+    const { shareableCode } = req.params;
+
+    const pod = await prisma.pod.findUnique({
+      where: { shareableCode },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatar: true,
+            profilePhoto: true
+          }
+        },
+        _count: {
+          select: {
+            members: true,
+            posts: true
+          }
+        }
+      }
+    });
+
+    if (!pod) {
+      res.status(404).json({ error: 'Pod not found' });
+      return;
+    }
+
+    if (!pod.isPublic || !pod.isApproved) {
+      res.status(403).json({ error: 'This pod is not available' });
+      return;
+    }
+
+    res.json({ pod });
+  } catch (error) {
+    console.error('Get pod preview error:', error);
+    res.status(500).json({ error: 'Failed to fetch pod details' });
+  }
+});
+
 export default router;

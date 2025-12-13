@@ -221,6 +221,7 @@ model Pod {
   isApproved                Boolean          @default(false)
   isVerified                Boolean          @default(false)
   acceptingPitches          Boolean          @default(true)
+  shareableCode             String           @unique @default(uuid())
   ownerId                   String
   createdAt                 DateTime         @default(now())
   updatedAt                 DateTime         @updatedAt
