@@ -11,6 +11,11 @@ router.use(adminAuthMiddleware);
 // Dashboard Statistics
 router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => {
   try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
     const [
       totalUsers,
       totalPods,
@@ -20,7 +25,17 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
       totalRooms,
       totalChats,
       recentUsers,
-      recentPosts
+      recentPosts,
+      // Active Users Metrics
+      dailyActiveUsers,
+      weeklyActiveUsers,
+      monthlyActiveUsers,
+      // Engagement Metrics
+      postsToday,
+      postsThisWeek,
+      postsThisMonth,
+      eventsThisWeek,
+      eventsThisMonth
     ] = await Promise.all([
       prisma.user.count(),
       prisma.pod.count(),
@@ -29,15 +44,66 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
       prisma.event.count(),
       prisma.room.count(),
       prisma.chat.count(),
-      prisma.user.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
-      prisma.post.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } })
+      prisma.user.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+      prisma.post.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+      // Count unique users who created posts, comments, or reactions in the last 24 hours
+      prisma.user.count({
+        where: {
+          OR: [
+            { posts: { some: { createdAt: { gte: oneDayAgo } } } },
+            { comments: { some: { createdAt: { gte: oneDayAgo } } } },
+            { reactions: { some: { createdAt: { gte: oneDayAgo } } } }
+          ]
+        }
+      }),
+      // Count unique users active in the last 7 days
+      prisma.user.count({
+        where: {
+          OR: [
+            { posts: { some: { createdAt: { gte: oneWeekAgo } } } },
+            { comments: { some: { createdAt: { gte: oneWeekAgo } } } },
+            { reactions: { some: { createdAt: { gte: oneWeekAgo } } } }
+          ]
+        }
+      }),
+      // Count unique users active in the last 30 days
+      prisma.user.count({
+        where: {
+          OR: [
+            { posts: { some: { createdAt: { gte: oneMonthAgo } } } },
+            { comments: { some: { createdAt: { gte: oneMonthAgo } } } },
+            { reactions: { some: { createdAt: { gte: oneMonthAgo } } } }
+          ]
+        }
+      }),
+      prisma.post.count({ where: { createdAt: { gte: oneDayAgo } } }),
+      prisma.post.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+      prisma.post.count({ where: { createdAt: { gte: oneMonthAgo } } }),
+      prisma.event.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+      prisma.event.count({ where: { createdAt: { gte: oneMonthAgo } } })
     ]);
 
     const stats = {
-      users: { total: totalUsers, recent: recentUsers },
+      users: { 
+        total: totalUsers, 
+        recent: recentUsers,
+        dau: dailyActiveUsers,
+        wau: weeklyActiveUsers,
+        mau: monthlyActiveUsers
+      },
       pods: { total: totalPods, pending: pendingPods },
-      posts: { total: totalPosts, recent: recentPosts },
-      events: { total: totalEvents },
+      posts: { 
+        total: totalPosts, 
+        recent: recentPosts,
+        today: postsToday,
+        thisWeek: postsThisWeek,
+        thisMonth: postsThisMonth
+      },
+      events: { 
+        total: totalEvents,
+        thisWeek: eventsThisWeek,
+        thisMonth: eventsThisMonth
+      },
       rooms: { total: totalRooms },
       chats: { total: totalChats }
     };
@@ -46,6 +112,79 @@ router.get('/stats', async (req: AdminRequest, res: Response): Promise<void> => 
   } catch (error) {
     console.error('Get admin stats error:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// Detailed Metrics for Charts (Last 30 Days)
+router.get('/metrics/detailed', async (req: AdminRequest, res: Response): Promise<void> => {
+  try {
+    const days = parseInt(req.query.days as string) || 30;
+    const now = new Date();
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+    // Generate daily data points
+    const dailyMetrics = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStart = new Date(date.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+
+      const [dau, posts, newUsers, events] = await Promise.all([
+        // Daily Active Users
+        prisma.user.count({
+          where: {
+            OR: [
+              { posts: { some: { createdAt: { gte: dayStart, lte: dayEnd } } } },
+              { comments: { some: { createdAt: { gte: dayStart, lte: dayEnd } } } },
+              { reactions: { some: { createdAt: { gte: dayStart, lte: dayEnd } } } }
+            ]
+          }
+        }),
+        // Posts created
+        prisma.post.count({
+          where: { createdAt: { gte: dayStart, lte: dayEnd } }
+        }),
+        // New users registered
+        prisma.user.count({
+          where: { createdAt: { gte: dayStart, lte: dayEnd } }
+        }),
+        // Events created
+        prisma.event.count({
+          where: { createdAt: { gte: dayStart, lte: dayEnd } }
+        })
+      ]);
+
+      dailyMetrics.push({
+        date: dayStart.toISOString().split('T')[0],
+        dau,
+        posts,
+        newUsers,
+        events
+      });
+    }
+
+    // Calculate growth rates
+    const firstWeek = dailyMetrics.slice(0, 7);
+    const lastWeek = dailyMetrics.slice(-7);
+    
+    const avgDauFirstWeek = firstWeek.reduce((sum, d) => sum + d.dau, 0) / 7;
+    const avgDauLastWeek = lastWeek.reduce((sum, d) => sum + d.dau, 0) / 7;
+    const dauGrowth = avgDauFirstWeek > 0 
+      ? ((avgDauLastWeek - avgDauFirstWeek) / avgDauFirstWeek * 100).toFixed(1)
+      : '0';
+
+    res.json({ 
+      metrics: dailyMetrics,
+      summary: {
+        dauGrowth: parseFloat(dauGrowth),
+        avgDauLastWeek: Math.round(avgDauLastWeek),
+        totalPostsLast30Days: dailyMetrics.reduce((sum, d) => sum + d.posts, 0),
+        totalNewUsersLast30Days: dailyMetrics.reduce((sum, d) => sum + d.newUsers, 0)
+      }
+    });
+  } catch (error) {
+    console.error('Get detailed metrics error:', error);
+    res.status(500).json({ error: 'Failed to fetch detailed metrics' });
   }
 });
 
