@@ -69,8 +69,8 @@ router.post(
   '/',
   authMiddleware,
   [
-    body('title').isLength({ min: 3 }).withMessage('Title must be at least 3 characters'),
-    body('description').isLength({ min: 10 }).withMessage('Description must be at least 10 characters'),
+    body('title').notEmpty().withMessage('Title is required'),
+    body('description').notEmpty().withMessage('Description is required'),
     body('category').optional().isString(),
     body('tags').optional().isArray()
   ],
@@ -106,9 +106,13 @@ router.post(
       });
 
       res.status(201).json({ idea });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create startup idea error:', error);
-      res.status(500).json({ error: 'Failed to create startup idea' });
+      res.status(500).json({ 
+        error: 'Failed to create startup idea',
+        message: error.message,
+        details: error.toString()
+      });
     }
   }
 );
@@ -118,8 +122,8 @@ router.put(
   '/:ideaId',
   authMiddleware,
   [
-    body('title').optional().isLength({ min: 3 }).withMessage('Title must be at least 3 characters'),
-    body('description').optional().isLength({ min: 10 }).withMessage('Description must be at least 10 characters'),
+    body('title').optional().isString(),
+    body('description').optional().isString(),
     body('category').optional().isString(),
     body('tags').optional().isArray()
   ],
