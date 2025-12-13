@@ -26,7 +26,7 @@ router.post(
       // Validate file type - allow images, videos, and PDFs
       if (!isValidFileType(fileType)) {
         res.status(400).json({ 
-          error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP), videos (MP4, WebM, OGG), and PDF documents are allowed.' 
+          error: 'Invalid file type. Only images (JPEG, PNG, GIF, WebP), videos (MP4, WebM, OGG, MOV, HEVC), and PDF documents are allowed.' 
         });
         return;
       }

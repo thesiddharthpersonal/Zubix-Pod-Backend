@@ -72,7 +72,7 @@ export const isValidImageType = (mimeType: string): boolean => {
  * Validate file type for videos
  */
 export const isValidVideoType = (mimeType: string): boolean => {
-  const validTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+  const validTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-m4v', 'video/hevc'];
   return validTypes.includes(mimeType.toLowerCase());
 };
 
