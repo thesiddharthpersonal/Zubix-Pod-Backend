@@ -38,6 +38,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     "http://localhost:8080",
     "http://localhost:5173",
     "http://localhost:3000",
+    "http://192.168.1.4:8080",
+    "http://192.168.1.4:5173",
+    "http://192.168.1.4:3000",
     "https://zoobalo.com",
     "https://www.zoobalo.com",
     "https://podapi.zoobalo.com",
@@ -125,14 +128,16 @@ app.use((err: ErrorWithStatus, req: Request, res: Response, next: NextFunction) 
 
 // Start server
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
-server.listen(PORT, () => {
+const HOST: string = '0.0.0.0'; // Listen on all network interfaces
+server.listen(PORT, HOST, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
 ║   🚀 Zubix Pod Server Started                        ║
 ║                                                       ║
-║   📡 HTTP Server: http://localhost:${PORT}             ║
-║   🔌 WebSocket Server: ws://localhost:${PORT}          ║
+║   📡 Local: http://localhost:${PORT}                   ║
+║   📡 Network: http://192.168.1.4:${PORT}               ║
+║   🔌 WebSocket: ws://192.168.1.4:${PORT}               ║
 ║   🌍 Environment: ${process.env.NODE_ENV || 'development'}                   ║
 ║   📅 Started at: ${new Date().toLocaleString()}      ║
 ║                                                       ║
