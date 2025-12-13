@@ -655,4 +655,134 @@ router.get('/:eventId/participants', authMiddleware, async (req: AuthenticatedRe
   }
 });
 
+// Download event participants as CSV (pod owner/co-owner only)
+router.get('/:eventId/participants/download', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { eventId } = req.params;
+    const userId = req.user!.id;
+
+    // Check if event exists and get pod details
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        pod: {
+          select: {
+            id: true,
+            name: true,
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if user is owner or co-owner of the pod
+    const isOwner = event.pod.ownerId === userId;
+    const isCoOwner = await prisma.podMember.findFirst({
+      where: {
+        podId: event.podId,
+        userId,
+        isCoOwner: true
+      }
+    });
+
+    if (!isOwner && !isCoOwner) {
+      return res.status(403).json({ error: 'Only pod owners and co-owners can download participant list' });
+    }
+
+    // Fetch all participants with detailed user information
+    const participants = await prisma.eventParticipant.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            email: true,
+            mobile: true,
+            profilePhoto: true,
+            role: true,
+            professionCategory: true,
+            organisationName: true,
+            designation: true,
+            collegeName: true,
+            currentCourse: true,
+            operatingCity: true,
+            linkedinUrl: true,
+            createdAt: true
+          }
+        }
+      },
+      orderBy: {
+        joinedAt: 'asc'
+      }
+    });
+
+    // Generate CSV content
+    const csvHeaders = [
+      'S.No',
+      'Full Name',
+      'Username',
+      'Email',
+      'Mobile',
+      'Role',
+      'Profession Category',
+      'Organisation/College Name',
+      'Designation/Course',
+      'City',
+      'LinkedIn URL',
+      'Registration Date',
+      'Account Created Date'
+    ];
+
+    const csvRows = participants.map((participant, index) => {
+      const user = participant.user;
+      return [
+        index + 1,
+        user.fullName || '',
+        user.username || '',
+        user.email || '',
+        user.mobile || '',
+        user.role || '',
+        user.professionCategory || '',
+        user.organisationName || user.collegeName || '',
+        user.designation || user.currentCourse || '',
+        user.operatingCity || '',
+        user.linkedinUrl || '',
+        new Date(participant.joinedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        new Date(user.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+      ].map(field => {
+        // Escape commas and quotes in CSV fields
+        const stringField = String(field);
+        if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+          return `"${stringField.replace(/"/g, '""')}"`;
+        }
+        return stringField;
+      }).join(',');
+    });
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows
+    ].join('\n');
+
+    // Set headers for file download
+    const fileName = `${event.name.replace(/[^a-z0-9]/gi, '_')}_participants_${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    // Add BOM for proper Excel UTF-8 encoding
+    res.write('\uFEFF');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Download participants CSV error:', error);
+    res.status(500).json({ error: 'Failed to download participants list' });
+  }
+});
+
 export default router;
