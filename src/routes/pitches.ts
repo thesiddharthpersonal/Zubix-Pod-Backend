@@ -247,6 +247,29 @@ router.post('/',
         contactPhone
       } = req.body;
 
+      // Check if pod exists and is accepting pitches
+      const pod = await prisma.pod.findUnique({
+        where: { id: podId },
+        select: {
+          id: true,
+          name: true,
+          acceptingPitches: true
+        }
+      });
+
+      if (!pod) {
+        res.status(404).json({ error: 'Pod not found' });
+        return;
+      }
+
+      if (!pod.acceptingPitches) {
+        res.status(403).json({ 
+          error: 'This pod is currently not accepting pitches',
+          message: `${pod.name} is not accepting new pitch submissions at this time. Please try again later.`
+        });
+        return;
+      }
+
       const pitch = await prisma.pitch.create({
         data: {
           podId,
