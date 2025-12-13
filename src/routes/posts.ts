@@ -142,6 +142,7 @@ router.get('/feed', authMiddleware, async (req: AuthenticatedRequest, res: Respo
           select: {
             id: true,
             name: true,
+            logo: true
           }
         },
         reactions: {
