@@ -51,7 +51,8 @@ router.get('/pod/:podId', authMiddleware, async (req: AuthenticatedRequest, res:
         pod: {
           select: {
             id: true,
-            name: true
+            name: true,
+            logo: true
           }
         },
         reactions: {
@@ -205,6 +206,7 @@ router.get('/:postId', authMiddleware, async (req: AuthenticatedRequest, res: Re
           select: {
             id: true,
             name: true,
+            logo: true
           }
         },
         reactions: {
