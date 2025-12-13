@@ -336,7 +336,25 @@ router.get('/:podId', authMiddleware, async (req: AuthenticatedRequest, res: Res
     const userMembership = pod.members.find(member => member.userId === req.user!.id);
     const isTeamMember = userMembership?.isTeamMember || false;
 
-    res.json({ pod: { ...pod, coOwners, teamMembers }, isMember, isOwner, isTeamMember });
+    // Format social links for frontend
+    const formattedPod = {
+      ...pod,
+      coOwners,
+      teamMembers,
+      socialLinks: {
+        linkedin: pod.linkedinUrl,
+        instagram: pod.instagramUrl,
+        facebook: pod.facebookUrl,
+        twitter: pod.twitterUrl,
+        youtube: pod.youtubeUrl,
+        github: pod.githubUrl,
+        portfolio: pod.portfolioUrl,
+        others: pod.othersUrl,
+        additionalLinks: pod.additionalLinks || []
+      }
+    };
+
+    res.json({ pod: formattedPod, isMember, isOwner, isTeamMember });
   } catch (error) {
     console.error('Get pod error:', error);
     res.status(500).json({ error: 'Failed to fetch pod' });
@@ -348,7 +366,7 @@ router.post('/',
   authMiddleware,
   isPodOwner,
   [
-    body('name').isLength({ min: 3 }).withMessage('Pod name must be at least 3 characters'),
+    body('name').isLength({ min: 3, max: 20 }).withMessage('Pod name must be between 3 and 20 characters'),
     body('subcategory').optional().isString(),
     body('focusAreas').optional().isArray(),
     body('organisationName').optional().isString(),
@@ -531,7 +549,7 @@ router.post('/',
 router.put('/:podId',
   authMiddleware,
   [
-    body('name').optional().isLength({ min: 3 }),
+    body('name').optional().isLength({ min: 3, max: 20 }).withMessage('Pod name must be between 3 and 20 characters'),
     body('description').optional().isString(),
     body('isPublic').optional().isBoolean()
   ],
@@ -750,7 +768,10 @@ router.put('/:podId',
           facebook: updatedPod.facebookUrl,
           twitter: updatedPod.twitterUrl,
           youtube: updatedPod.youtubeUrl,
-          others: updatedPod.othersUrl
+          github: updatedPod.githubUrl,
+          portfolio: updatedPod.portfolioUrl,
+          others: updatedPod.othersUrl,
+          additionalLinks: updatedPod.additionalLinks || []
         },
         coOwners: updatedPod.members.map(m => ({
           id: m.user.id,
